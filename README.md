@@ -1,34 +1,27 @@
-# get and patch tensorrt
-```
-git clone https://github.com/NVIDIA/TensorRT/
-pushd TensorRT
-git submodule update --init --recursive
-git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b
-git submodule update
-git apply ../tensorrt.diff
-popd
-```
+# install cuda, cudnn, tensorrt
 
-# build docker image
-```
-make docker-build
-```
+# patch tensorrt
 
-# build tensorrt
-```
-make docker-run
-root@docker> cd TensorRT
-root@docker> mkdir -p build && cd build
-root@docker> cmake .. -DTRT_LIB_DIR=$TRT_LIBPATH -DTRT_OUT_DIR=`pwd`/out
-root@docker> make
-```
+1.  git clone https://github.com/NVIDIA/TensorRT/, checkout to
+    156c59ae86d454fa89146fe65fa7332dbc8c3c2b and apply `tensorrt.diff`
 
-# build and run models
-```
-make docker-run
-root@docker> make
-root@docker> make run-mnist
-root@docker> make run-googlenet
-root@docker> make run-mobilenet
-root@docker> make run-resnet
-```
+2.  build TensorRT
+
+3.  change Makefile based on your local config
+
+# run
+
+make run\_mnist
+
+make run\_googlenet
+
+# run with int8
+
+1.  turn on `CPPFLAGS += -DINT8` in Makefile
+2.  make clean
+3.  make run\_mnist
+
+# TODO
+
+1. ssd: PriorBox
+2. enet: deconvolution, upsample and dilated convolution
