@@ -1,5 +1,9 @@
 # install cuda, cudnn, tensorrt
 
+1. cuda-11
+2. cudnn-8.2.1
+3. tensorrt 8.2.1.8
+
 # patch tensorrt-oss
 
 1.  get https://github.com/NVIDIA/TensorRT/, checkout to
