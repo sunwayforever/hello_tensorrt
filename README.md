@@ -1,5 +1,4 @@
 # get and patch tensorrt
-
 ```
 git clone https://github.com/NVIDIA/TensorRT/
 pushd TensorRT
@@ -9,13 +8,26 @@ git apply ../tensorrt.diff
 popd
 ```
 
-# build and run
-
+# build docker image
 ```
 make docker-build
-make docker-run
+```
 
+# build tensorrt
+```
+make docker-run
+root@docker> cd TensorRT
+root@docker> mkdir -p build && cd build
+root@docker> cmake .. -DTRT_LIB_DIR=$TRT_LIBPATH -DTRT_OUT_DIR=`pwd`/out
+root@docker> make
+```
+
+# build and run models
+```
+make docker-run
 root@docker> make
 root@docker> make run-mnist
 root@docker> make run-googlenet
+root@docker> make run-mobilenet
+root@docker> make run-resnet
 ```
