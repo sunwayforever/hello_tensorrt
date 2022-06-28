@@ -1,1 +1,4 @@
 TensorRT
+*.o
+*.d
+*.elf

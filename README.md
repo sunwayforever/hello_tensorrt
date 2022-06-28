@@ -3,7 +3,8 @@
 git clone https://github.com/NVIDIA/TensorRT/
 pushd TensorRT
 git submodule update --init --recursive
-git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b 
+git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b
+git submodule update
 git apply ../tensorrt.diff
 popd
 ```
