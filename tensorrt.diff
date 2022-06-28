@@ -1,0 +1,326 @@
+diff --git a/parsers/caffe/caffeParser/caffeParser.cpp b/parsers/caffe/caffeParser/caffeParser.cpp
+index 61d7dce..2a1a4bd 100644
+--- a/parsers/caffe/caffeParser/caffeParser.cpp
++++ b/parsers/caffe/caffeParser/caffeParser.cpp
+@@ -309,6 +309,247 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
+     return f;
+ }
+ 
++std::vector<nvinfer1::PluginField> CaffeParser::parsePowerParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::PowerParameter& p = msg.power_param();
++
++    // Memory allocations for plugin field variables
++    float* power = allocMemory<float>();
++    float* scale = allocMemory<float>();
++    float* shift = allocMemory<float>();
++
++    // Intialize the plugin fields with values from the prototxt
++    *power = p.power();
++    f.emplace_back("power", power, PluginFieldType::kFLOAT32, 1);
++
++    *scale = p.scale();
++    f.emplace_back("scale", scale, PluginFieldType::kFLOAT32, 1);
++
++    *shift = p.shift();
++    f.emplace_back("shift", shift, PluginFieldType::kFLOAT32, 1);
++
++    return f;
++}
++
++std::vector<nvinfer1::PluginField> CaffeParser::parsePoolingParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::PoolingParameter& p = msg.pooling_param();
++    int* method = allocMemory<int>();
++    *method = p.pool();
++    f.emplace_back("method", method, PluginFieldType::kINT32, 1);
++
++    int *kernel_h = allocMemory<int>();
++    int *kernel_w = allocMemory<int>();
++    *kernel_h = p.has_kernel_h() ? p.kernel_h() : p.kernel_size();
++    *kernel_w = p.has_kernel_w() ? p.kernel_w() : p.kernel_size();
++    f.emplace_back("kernel_h", kernel_h, PluginFieldType::kINT32, 1);
++    f.emplace_back("kernel_w", kernel_w, PluginFieldType::kINT32, 1);
++
++    int *global_pooling = allocMemory<int>();
++    *global_pooling = (int)(p.global_pooling());
++    f.emplace_back("global_pooling", global_pooling, PluginFieldType::kINT32, 1);
++    
++    int *stride_h = allocMemory<int>();
++    int *stride_w = allocMemory<int>();
++    *stride_h = p.has_stride_h() ? p.stride_h() : p.stride();
++    *stride_w = p.has_stride_w() ? p.stride_w() : p.stride();
++    f.emplace_back("stride_h", stride_h, PluginFieldType::kINT32, 1);
++    f.emplace_back("stride_w", stride_w, PluginFieldType::kINT32, 1);
++
++    int *pad_h = allocMemory<int>();
++    int *pad_w = allocMemory<int>();
++    *pad_h = p.has_pad_h() ? p.pad_h() : p.pad();
++    *pad_w = p.has_pad_w() ? p.pad_w() : p.pad();
++    f.emplace_back("pad_h", pad_h, PluginFieldType::kINT32, 1);
++    f.emplace_back("pad_w", pad_w, PluginFieldType::kINT32, 1);
++
++    return f;
++}
++
++std::vector<nvinfer1::PluginField> CaffeParser::parseInnerProductParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::InnerProductParameter& p = msg.inner_product_param();
++
++    int* num_output = allocMemory<int>();
++    *num_output = p.num_output();
++    f.emplace_back("num_output", num_output, PluginFieldType::kINT32, 1);
++
++    Weights kernelWeights = weightFactory(msg.name(), WeightType::kGENERIC);
++    Weights* kernel = allocMemory<Weights>();
++    memcpy(kernel, &kernelWeights, sizeof(kernelWeights));
++    f.emplace_back("kernel_weights", kernel, PluginFieldType::kUNKNOWN, 1);
++
++    Weights* bias = allocMemory<Weights>();
++    Weights biasWeights = !p.has_bias_term() || p.bias_term() ? weightFactory(msg.name(), WeightType::kBIAS) : weightFactory.getNullWeights();
++    memcpy(bias, &biasWeights, sizeof(biasWeights));
++    f.emplace_back("bias_weights", bias, PluginFieldType::kUNKNOWN, 1);
++
++    return f;
++}
++
++std::vector<nvinfer1::PluginField> CaffeParser::parseConvolutionParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::ConvolutionParameter& p = msg.convolution_param();
++
++    int* num_output = allocMemory<int>();
++    *num_output = p.num_output();
++    f.emplace_back("num_output", num_output, PluginFieldType::kINT32, 1);
++
++    Weights kernelWeights = weightFactory(msg.name(), WeightType::kGENERIC);
++    Weights* kernel = allocMemory<Weights>();
++    memcpy(kernel, &kernelWeights, sizeof(kernelWeights));
++    f.emplace_back("kernel_weights", kernel, PluginFieldType::kUNKNOWN, 1);
++
++    Weights* bias = allocMemory<Weights>();
++    Weights biasWeights = !p.has_bias_term() || p.bias_term() ? weightFactory(msg.name(), WeightType::kBIAS) : weightFactory.getNullWeights();
++    memcpy(bias, &biasWeights, sizeof(biasWeights));
++    f.emplace_back("bias_weights", bias, PluginFieldType::kUNKNOWN, 1);
++
++    int *kernel_h = allocMemory<int>();
++    int *kernel_w = allocMemory<int>();
++    *kernel_h = p.has_kernel_h() ? p.kernel_h() : p.kernel_size(0);
++    *kernel_w = p.has_kernel_w() ? p.kernel_w() : p.kernel_size(0);
++    f.emplace_back("kernel_h", kernel_h, PluginFieldType::kINT32, 1);
++    f.emplace_back("kernel_w", kernel_w, PluginFieldType::kINT32, 1);
++
++    int *stride_h = allocMemory<int>();
++    int *stride_w = allocMemory<int>();
++    *stride_h = 1;
++    *stride_w = 1;
++    if (p.has_stride_h())
++    {
++        *stride_h = p.stride_h();
++    }
++    else if (p.stride_size() != 0)
++    {
++        *stride_h = p.stride(0);
++    }
++    if (p.has_stride_w())
++    {
++        *stride_w = p.stride_w();
++    }
++    else if (p.stride_size() != 0)
++    {
++        *stride_w = p.stride(0);
++    }
++    f.emplace_back("stride_h", stride_h, PluginFieldType::kINT32, 1);
++    f.emplace_back("stride_w", stride_w, PluginFieldType::kINT32, 1);
++
++    int *pad_h = allocMemory<int>();
++    int *pad_w = allocMemory<int>();
++    *pad_h = 0;
++    *pad_w = 0;
++    if (p.has_pad_h())
++    {
++        *pad_h = p.pad_h();
++    }
++    else if (p.pad_size() != 0)
++    {
++        *pad_h = p.pad(0);
++    }
++    if (p.has_pad_w())
++    {
++        *pad_w = p.pad_w();
++    }
++    else if (p.pad_size() != 0)
++    {
++        *pad_w = p.pad(0);
++    }
++    f.emplace_back("pad_h", pad_h, PluginFieldType::kINT32, 1);
++    f.emplace_back("pad_w", pad_w, PluginFieldType::kINT32, 1);
++
++    int *group = allocMemory<int>();
++    *group = p.group();
++    f.emplace_back("group", group, PluginFieldType::kINT32, 1);
++    
++    return f;
++}
++
++std::vector<nvinfer1::PluginField> CaffeParser::parseLRNParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::LRNParameter& p = msg.lrn_param();
++
++    int* local_size = allocMemory<int>();
++    *local_size = p.local_size();
++    f.emplace_back("local_size", local_size, PluginFieldType::kINT32, 1);
++
++    float* alpha = allocMemory<float>();
++    *alpha = p.alpha();
++    f.emplace_back("alpha", alpha, PluginFieldType::kFLOAT32, 1);
++
++    float* beta = allocMemory<float>();
++    *beta = p.beta();
++    f.emplace_back("beta", beta, PluginFieldType::kFLOAT32, 1);
++
++    return f;
++}
++
++std::vector<nvinfer1::PluginField> CaffeParser::parseBatchNormParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::BatchNormParameter& p = msg.batch_norm_param();
++
++    // float* moving_average_fraction = allocMemory<float>();
++    // *moving_average_fraction = p.moving_average_fraction();
++    // f.emplace_back("moving_average_fraction", moving_average_fraction, PluginFieldType::kFLOAT32, 1);
++
++    float* eps = allocMemory<float>();
++    *eps = p.eps();
++    f.emplace_back("eps", eps, PluginFieldType::kFLOAT32, 1);
++
++    Weights meanWeights = weightFactory(msg.name(), WeightType::kMEAN);
++    Weights* mean = allocMemory<Weights>();
++    memcpy(mean, &meanWeights, sizeof(meanWeights));
++    f.emplace_back("mean_weights", mean, PluginFieldType::kUNKNOWN, 1);
++
++    Weights varWeights = weightFactory(msg.name(), WeightType::kVARIANCE);
++    Weights* var = allocMemory<Weights>();
++    memcpy(var, &varWeights, sizeof(varWeights));
++    f.emplace_back("var_weights", var, PluginFieldType::kUNKNOWN, 1);
++
++    Weights averageWeights = weightFactory(msg.name(), WeightType::kMOVING_AVERAGE);
++    float* moving_average = allocMemory<float>();
++    *moving_average = ((float *)(averageWeights.values))[0];
++    f.emplace_back("moving_average",  moving_average , PluginFieldType::kFLOAT32, 1);
++
++    return f;
++}
++
++std::vector<nvinfer1::PluginField> CaffeParser::parseScaleParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::ScaleParameter& p = msg.scale_param();
++
++    Weights scaleWeights = weightFactory(msg.name(), WeightType::kGENERIC);
++    Weights* scale = allocMemory<Weights>();
++    memcpy(scale, &scaleWeights, sizeof(scaleWeights));
++    f.emplace_back("scale_weights", scale, PluginFieldType::kUNKNOWN, 1);
++
++    Weights biasWeights = !p.has_bias_term() || p.bias_term() ? weightFactory(msg.name(), WeightType::kBIAS) : weightFactory.getNullWeights();
++    Weights* bias = allocMemory<Weights>();
++    memcpy(bias, &biasWeights, sizeof(biasWeights));
++    f.emplace_back("bias_weights", bias, PluginFieldType::kUNKNOWN, 1);
++
++    return f;
++}
++
++std::vector<nvinfer1::PluginField> CaffeParser::parseEltwiseParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::EltwiseParameter& p = msg.eltwise_param();
++
++    int* operation = allocMemory<int>();
++    *operation = p.operation();
++    f.emplace_back("operation", operation, PluginFieldType::kINT32, 1);
++
++    return f;
++}
++
+ const IBlobNameToTensor* CaffeParser::parseBuffers(const uint8_t* deployBuffer,
+                                                    std::size_t deployLength,
+                                                    const uint8_t* modelBuffer,
+@@ -498,6 +739,54 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+                     pluginName = "RPROI_TRT";
+                     f = parseRPROIParam(layerMsg, weights, *mBlobNameToTensor);
+                 }
++                else if (layerMsg.type() == "Softmax")
++                {
++                    pluginName = "SOFTMAX";
++                }
++                else if (layerMsg.type() == "Power")
++                {
++                    pluginName = "POWER";
++                    f = parsePowerParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "ReLU")
++                {
++                    pluginName = "RELU";
++                }
++                else if (layerMsg.type() == "Pooling")
++                {
++                    pluginName = "POOLING";
++                    f = parsePoolingParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "InnerProduct")
++                {
++                    pluginName = "INNER_PRODUCT";
++                    f = parseInnerProductParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "Convolution")
++                {
++                    pluginName = "CONVOLUTION";
++                    f = parseConvolutionParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "LRN")
++                {
++                    pluginName = "LRN";
++                    f = parseLRNParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "BatchNorm")
++                {
++                    pluginName = "BATCH_NORM";
++                    f = parseBatchNormParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "Scale")
++                {
++                    pluginName = "SCALE";
++                    f = parseScaleParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "Eltwise")
++                {
++                    pluginName = "ELTWISE";
++                    f = parseEltwiseParam(layerMsg, weights, *mBlobNameToTensor);
++                }
+ 
+                 if (mPluginRegistry.find(pluginName) != mPluginRegistry.end())
+                 {
+diff --git a/parsers/caffe/caffeParser/caffeParser.h b/parsers/caffe/caffeParser/caffeParser.h
+index 5a24f63..2060252 100644
+--- a/parsers/caffe/caffeParser/caffeParser.h
++++ b/parsers/caffe/caffeParser/caffeParser.h
+@@ -60,6 +60,14 @@ private:
+     std::vector<nvinfer1::PluginField> parseDetectionOutputParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
+     std::vector<nvinfer1::PluginField> parseLReLUParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
+     std::vector<nvinfer1::PluginField> parseRPROIParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parsePowerParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parsePoolingParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseInnerProductParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseConvolutionParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseLRNParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseBatchNormParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseScaleParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseEltwiseParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
+     template <typename T>
+     T* allocMemory(int size = 1)
+     {

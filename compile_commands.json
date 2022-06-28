@@ -1,0 +1,18 @@
+[
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-g",
+            "-O0",
+            "-I",
+            "/opt/anaconda3/envs/cuda-11/include/",
+            "-I/usr/include/opencv4",
+            "-o",
+            "googlenet.o",
+            "googlenet.cpp"
+        ],
+        "directory": "/home/sunway/Gitbox/code/hello_world/hello_tensorrt",
+        "file": "googlenet.cpp"
+    }
+]
