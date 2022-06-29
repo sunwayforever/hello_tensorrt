@@ -4,6 +4,7 @@ CXXFLAGS := -g -O0 -MMD
 LDFLAGS := -L/opt/anaconda3/envs/cuda-11/lib -L/opt/anaconda3/envs/cuda-11/lib64 -L${PWD}/TensorRT/build/out
 LDLIBS := -lnvcaffeparser -lnvinfer -lnvinfer_plugin -lcudnn -lcudart -lstdc++ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
 
+NVCC := /opt/anaconda3/envs/cuda-11/nvcc
 SRC := $(wildcard *.cpp)
 OBJ := $(patsubst %.cpp,%.o,${SRC})
 APP := $(patsubst %.cpp,%.elf,${SRC})
@@ -18,7 +19,7 @@ CUDA_KERNEL_SRC:=$(wildcard kernel/*.cu)
 CUDA_OBJ := $(patsubst %.cu,%.o,${CUDA_KERNEL_SRC})
 
 %.o:%.cu
-	nvcc -c $^ -o $@
+	${NVCC} -c $^ -o $@
 
 .PRECIOUS: ${CUDA_OBJ}
 
@@ -30,3 +31,19 @@ ${RUN_APP}:run-%:%.elf
 
 clean:
 	rm ${OBJ} ${APP} ${DEP} ${CUDA_OBJ}
+
+build-tensorrt:
+	pushd TensorRT
+	mkdir -p build && cd build
+	CUDACXX=/opt/anaconda3/envs/cuda-11/bin/nvcc cmake .. -DTRT_LIB_DIR=/opt/anaconda3/envs/cuda-11/lib -DTRT_OUT_DIR=`pwd`/out
+	make
+	popd
+
+get-tensorrt:
+	git clone https://github.com/NVIDIA/TensorRT/
+	pushd TensorRT
+	git submodule update --init --recursive
+	git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b
+	git submodule update
+	git apply ../tensorrt.diff
+	popd

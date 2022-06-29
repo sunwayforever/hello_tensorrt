@@ -4,14 +4,30 @@
 2. cudnn-8.2.1
 3. tensorrt 8.2.1.8
 
-# patch tensorrt-oss
+# get and patch tensorrt-oss
+```
+git clone https://github.com/NVIDIA/TensorRT/
+pushd TensorRT
+git submodule update --init --recursive
+git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b
+git submodule update
+git apply ../tensorrt.diff
+popd
+```
 
-1.  get https://github.com/NVIDIA/TensorRT/, checkout to
-    156c59ae86d454fa89146fe65fa7332dbc8c3c2b and apply `tensorrt.diff`
+# build tensorrt
+```
+pushd TensorRT
+mkdir -p build && cd build
+cmake .. -DTRT_LIB_DIR=/opt/anaconda3/envs/cuda-11/lib -DTRT_OUT_DIR=`pwd`/out
+make
+popd
+```
 
-2.  build TensorRT
+# get pretrianed model
 
-3.  change Makefile based on your local config
+get models from https://mega.nz/folder/X5UD1LDY#8ZI-gAq6AkpcUbE2z4n6RA and save
+models to `model` directory
 
 # run
 
