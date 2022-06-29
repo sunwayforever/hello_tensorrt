@@ -2,4 +2,4 @@ TensorRT
 *.o
 *.d
 *.elf
-.caffemodel
+*.caffemodel

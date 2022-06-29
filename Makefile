@@ -4,7 +4,7 @@ CXXFLAGS := -g -O0 -MMD
 LDFLAGS := -L/opt/anaconda3/envs/cuda-11/lib -L/opt/anaconda3/envs/cuda-11/lib64 -L${PWD}/TensorRT/build/out
 LDLIBS := -lnvcaffeparser -lnvinfer -lnvinfer_plugin -lcudnn -lcudart -lstdc++ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
 
-NVCC := /opt/anaconda3/envs/cuda-11/nvcc
+NVCC := /opt/anaconda3/envs/cuda-11/bin/nvcc
 SRC := $(wildcard *.cpp)
 OBJ := $(patsubst %.cpp,%.o,${SRC})
 APP := $(patsubst %.cpp,%.elf,${SRC})
