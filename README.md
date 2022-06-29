@@ -19,7 +19,7 @@ popd
 ```
 pushd TensorRT
 mkdir -p build && cd build
-cmake .. -DTRT_LIB_DIR=/opt/anaconda3/envs/cuda-11/lib -DTRT_OUT_DIR=`pwd`/out
+CUDACXX=/opt/anaconda3/envs/cuda-11/bin/nvcc cmake .. -DTRT_LIB_DIR=/opt/anaconda3/envs/cuda-11/lib -DTRT_OUT_DIR=`pwd`/out
 make
 popd
 ```
