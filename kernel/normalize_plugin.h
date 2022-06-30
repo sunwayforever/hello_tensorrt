@@ -70,7 +70,6 @@ class NormalizePlugin : public IPluginV2IOExt {
         void* workspace, cudaStream_t stream) noexcept override {
         float* dst = reinterpret_cast<float*>(outputs[0]);
         const float* src = reinterpret_cast<const float*>(inputs[0]);
-        std::cout << *this;
         Normalize(
             dst, src, mChannel, mH, mW, mAcrossSpatial, mChannelShared, mEps,
             (float*)mScaleWeights.values, workspace, stream);
@@ -159,38 +158,4 @@ class NormalizePlugin : public IPluginV2IOExt {
     float mEps;
     float mChannelShared;
     std::string mNamespace;
-};
-
-class NormalizePluginCreator : public IPluginCreator {
-   public:
-    const char* getPluginName() const noexcept override { return "NORMALIZE"; }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    const PluginFieldCollection* getFieldNames() noexcept override {
-        return &mFieldCollection;
-    }
-    IPluginV2* createPlugin(
-        const char* name, const PluginFieldCollection* fc) noexcept override {
-        auto* plugin = new NormalizePlugin(*fc);
-        mFieldCollection = *fc;
-        mPluginName = name;
-        return plugin;
-    }
-    IPluginV2* deserializePlugin(
-        const char* name, const void* serialData,
-        size_t serialLength) noexcept override {
-        auto* plugin = new NormalizePlugin(serialData, serialLength);
-        mPluginName = name;
-        return plugin;
-    }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-
-   private:
-    std::string mNamespace;
-    std::string mPluginName;
-    PluginFieldCollection mFieldCollection{0, nullptr};
 };

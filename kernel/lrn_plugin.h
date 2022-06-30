@@ -136,37 +136,3 @@ class LRNPlugin : public IPluginV2IOExt {
     float mBeta;
     std::string mNamespace;
 };
-
-class LRNPluginCreator : public IPluginCreator {
-   public:
-    const char* getPluginName() const noexcept override { return "LRN"; }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    const PluginFieldCollection* getFieldNames() noexcept override {
-        return &mFieldCollection;
-    }
-    IPluginV2* createPlugin(
-        const char* name, const PluginFieldCollection* fc) noexcept override {
-        auto* plugin = new LRNPlugin(*fc);
-        mFieldCollection = *fc;
-        mPluginName = name;
-        return plugin;
-    }
-    IPluginV2* deserializePlugin(
-        const char* name, const void* serialData,
-        size_t serialLength) noexcept override {
-        auto* plugin = new LRNPlugin(serialData, serialLength);
-        mPluginName = name;
-        return plugin;
-    }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-
-   private:
-    std::string mNamespace;
-    std::string mPluginName;
-    PluginFieldCollection mFieldCollection{0, nullptr};
-};
