@@ -1,11 +1,12 @@
 #include <float.h>
 #include <stdio.h>
+#include <thrust/extrema.h>
 
 __global__ void ConvKernel(
     int8_t* dst, const int8_t* src, int input_scale, int output_scale,
     int input_channel, int output_channel, int h, int w, int kernel_h,
     int kernel_w, int stride_h, int stride_w, int output_h, int output_w,
-    int padding_h, int padding_w, float* kernel, float* bias) {
+    int padding_h, int padding_w, int8_t* kernel, int kernel_scale, float* bias) {
     int global_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     int channel = global_id / output_h / output_w;
@@ -28,7 +29,7 @@ __global__ void ConvKernel(
                 int orig_x = output_x * stride_h + i;
                 int orig_y = output_y * stride_w + j;
 
-                float src_value = 0.0;
+                int8_t src_value = 0;
                 if (orig_x >= padding_h && orig_x < padding_h + h &&
                     orig_y >= padding_w && orig_y < padding_w + w) {
                     src_value =
@@ -36,15 +37,16 @@ __global__ void ConvKernel(
                             padding_w];
                 }
                 // OIHW
-                float kernel_value = kernel
+                int8_t kernel_value = kernel
                     [channel * input_channel * kernel_h * kernel_w +
                      k * kernel_h * kernel_w + i * kernel_w + j];
-                sum += (float)src_value / input_scale * kernel_value;
+                sum += (float)src_value * kernel_value;
             }
         }
     }
+
     dst[channel * output_h * output_w + output_x * output_w + output_y] =
-        (int)(sum * output_scale);
+        (int)(sum / input_scale / kernel_scale * output_scale );
 }
 
 void ConvolutionInt8(
@@ -52,17 +54,36 @@ void ConvolutionInt8(
     int input_channel, int output_channel, int group, int h, int w,
     int kernel_h, int kernel_w, int stride_h, int stride_w, int padding_h,
     int padding_w, float* kernel, float* bias, cudaStream_t stream) {
-    float* kernelWeights;
+    int8_t* kernelWeights;
     float* biasWeights;
     //  input channel: 1 output channel: 20 h: 28 w: 28 kernel: 5 5 stride: 1 1
     // 20, 24, 24
+    float kernel_max = kernel[0];
+    float kernel_min = kernel[0];
+    int kernel_scale = 0;
+    int8_t* kernel_I8 = malloc(sizeof(int8_t)*(input_channel * output_channel * kernel_h * kernel_w));
+    for(int i=0, i<input_channel * output_channel * kernel_h * kernel_w, i++){
+        if (kernel[i] > kernel_max){
+            kernel_max = kernel[i];
+        }
+        if (kernel[i] < kernel_min){
+            kernel_min = kernel[i];
+        }
+    }
+
+    kernel_scale = max(abs(kernel_max),abs(kernel_min))/127;
+    
+    for (int i=0, i<input_channel * output_channel * kernel_h * kernel_w, i++){
+        kernel_I8[i] = (int8_t)(kernel[i]/kernel_scale);
+    }
+
     cudaMalloc(
         &kernelWeights,
-        input_channel * output_channel * kernel_h * kernel_w * 4);
+        input_channel * output_channel * kernel_h * kernel_w * sizeof(int8_t));
     cudaMalloc(&biasWeights, output_channel * 4);
     cudaMemcpy(
-        kernelWeights, kernel,
-        input_channel * output_channel * kernel_h * kernel_w * 4,
+        kernelWeights, kernel_I8,
+        input_channel * output_channel * kernel_h * kernel_w  * sizeof(int8_t),
         cudaMemcpyHostToDevice);
     cudaMemcpy(biasWeights, bias, output_channel * 4, cudaMemcpyHostToDevice);
 
@@ -74,5 +95,5 @@ void ConvolutionInt8(
     ConvKernel<<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
         dst, src, input_scale, output_scale, input_channel, output_channel, h,
         w, kernel_h, kernel_w, stride_h, stride_w, output_h, output_w,
-        padding_h, padding_w, kernelWeights, biasWeights);
+        padding_h, padding_w, kernelWeights, kernel_scale, biasWeights);
 }
