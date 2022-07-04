@@ -3,9 +3,9 @@
 
 #include <vector>
 __global__ void PriorBoxKernel(
-    float* output, int h, int w, float offset, float step, float* min_size,
-    int min_size_count, float* max_size, int max_size_count,
-    float* aspect_ratio, int aspect_ratio_count) {
+    float* output, int h, int w, int image_h, int image_w, float offset,
+    float step, float* min_size, int min_size_count, float* max_size,
+    int max_size_count, float* aspect_ratio, int aspect_ratio_count) {
     int output_x = blockIdx.x;
     int output_y = blockIdx.y;
     // #N of box is `aspect_ratio_count` + `max_size_count`
@@ -28,10 +28,10 @@ __global__ void PriorBoxKernel(
     for (int i = 0; i < min_size_count; i++) {
         // aspect_ratio=1, num_min[i]
         float box_size = min_size[i];
-        float a = (cx - box_size / 2.0f) / 300.0f;
-        float b = (cy - box_size / 2.0f) / 300.0f;
-        float c = (cx + box_size / 2.0f) / 300.0f;
-        float d = (cy + box_size / 2.0f) / 300.0f;
+        float a = (cx - box_size / 2.0f) / (float)image_h;
+        float b = (cy - box_size / 2.0f) / (float)image_w;
+        float c = (cx + box_size / 2.0f) / (float)image_h;
+        float d = (cy + box_size / 2.0f) / (float)image_w;
         output[(box_pos + k) * 4] = b;
         output[(box_pos + k) * 4 + 1] = a;
         output[(box_pos + k) * 4 + 2] = d;
@@ -46,10 +46,10 @@ __global__ void PriorBoxKernel(
     for (int i = 0; i < min_size_count; i++) {
         // aspect_ratio=1, sqrt(min_size[i]*max_size[i])
         float box_size = sqrt(min_size[i] * max_size[i]);
-        float a = (cx - box_size / 2.0f) / 300.0f;
-        float b = (cy - box_size / 2.0f) / 300.0f;
-        float c = (cx + box_size / 2.0f) / 300.0f;
-        float d = (cy + box_size / 2.0f) / 300.0f;
+        float a = (cx - box_size / 2.0f) / (float)image_h;
+        float b = (cy - box_size / 2.0f) / (float)image_w;
+        float c = (cx + box_size / 2.0f) / (float)image_h;
+        float d = (cy + box_size / 2.0f) / (float)image_w;
         output[(box_pos + k) * 4] = b;
         output[(box_pos + k) * 4 + 1] = a;
         output[(box_pos + k) * 4 + 2] = d;
@@ -65,10 +65,10 @@ __global__ void PriorBoxKernel(
         for (int j = 0; j < min_size_count; j++) {
             float box_size_h = min_size[j] / sqrt(aspect_ratio[i]);
             float box_size_w = min_size[j] * sqrt(aspect_ratio[i]);
-            float a = (cx - box_size_h / 2.0f) / 300.0f;
-            float b = (cy - box_size_w / 2.0f) / 300.0f;
-            float c = (cx + box_size_h / 2.0f) / 300.0f;
-            float d = (cy + box_size_w / 2.0f) / 300.0f;
+            float a = (cx - box_size_h / 2.0f) / (float)image_h;
+            float b = (cy - box_size_w / 2.0f) / (float)image_w;
+            float c = (cx + box_size_h / 2.0f) / (float)image_h;
+            float d = (cy + box_size_w / 2.0f) / (float)image_w;
             output[(box_pos + k) * 4] = b;
             output[(box_pos + k) * 4 + 1] = a;
             output[(box_pos + k) * 4 + 2] = d;
@@ -83,8 +83,8 @@ __global__ void PriorBoxKernel(
 }
 
 void PriorBox(
-    float* dst, int h, int w, float offset, float step,
-    std::vector<float> min_size, std::vector<float> max_size,
+    float* dst, int h, int w, int image_h, int image_w, float offset,
+    float step, std::vector<float> min_size, std::vector<float> max_size,
     std::vector<float> aspect_ratio, cudaStream_t stream) {
     //  h: 38 w: 38 mMinSize: 1:30  mMaxSize: 1:60  mAspectRatio: 3:1 2 0.5
     //  mStep: 8 mOffset: 0.5
@@ -105,6 +105,6 @@ void PriorBox(
         cudaMemcpyHostToDevice);
 
     PriorBoxKernel<<<dim3(h, w), 1, 0, stream>>>(
-        dst, h, w, offset, step, minSize, min_size.size(), maxSize,
-        max_size.size(), aspectRatio, aspect_ratio.size());
+        dst, h, w, image_h, image_w, offset, step, minSize, min_size.size(),
+        maxSize, max_size.size(), aspectRatio, aspect_ratio.size());
 }

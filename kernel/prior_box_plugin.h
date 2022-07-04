@@ -12,9 +12,9 @@
 #include "NvInferRuntime.h"
 
 extern void PriorBox(
-    float*, int h, int w, float offset, float step, std::vector<float> min_size,
-    std::vector<float> max_size, std::vector<float> aspect_ration,
-    cudaStream_t);
+    float*, int h, int w, int image_h, int image_w, float offset, float step,
+    std::vector<float> min_size, std::vector<float> max_size,
+    std::vector<float> aspect_ration, cudaStream_t);
 
 using namespace nvinfer1;
 
@@ -52,19 +52,21 @@ class PriorBox2Plugin : public IPluginV2IOExt {
     PriorBox2Plugin(const void* data, size_t length) {
         mH = ((int*)data)[0];
         mW = ((int*)data)[1];
-        mFlip = ((int*)data)[2];
-        mOffset = ((float*)data)[3];
-        mStep = ((float*)data)[4];
-        int minSize = ((int*)data)[5];
-        int maxSize = ((int*)data)[6];
-        int aspectRatioSize = ((int*)data)[7];
+        mImageH = ((int*)data)[2];
+        mImageW = ((int*)data)[3];
+        mFlip = ((int*)data)[4];
+        mOffset = ((float*)data)[5];
+        mStep = ((float*)data)[6];
+        int minSize = ((int*)data)[7];
+        int maxSize = ((int*)data)[8];
+        int aspectRatioSize = ((int*)data)[9];
         mMinSize = std::vector<float>(minSize);
-        memcpy(mMinSize.data(), (float*)data + 8, minSize * 4);
+        memcpy(mMinSize.data(), (float*)data + 10, minSize * 4);
         mMaxSize = std::vector<float>(maxSize);
-        memcpy(mMaxSize.data(), (float*)data + 8 + minSize, maxSize * 4);
+        memcpy(mMaxSize.data(), (float*)data + 10 + minSize, maxSize * 4);
         mAspectRatio = std::vector<float>(aspectRatioSize);
         memcpy(
-            mAspectRatio.data(), (float*)data + 8 + minSize + maxSize,
+            mAspectRatio.data(), (float*)data + 10 + minSize + maxSize,
             aspectRatioSize * 4);
     }
 
@@ -95,30 +97,32 @@ class PriorBox2Plugin : public IPluginV2IOExt {
         float* dst = reinterpret_cast<float*>(outputs[0]);
         std::cout << *this;
         PriorBox(
-            dst, mH, mW, mOffset, mStep, mMinSize, mMaxSize, mAspectRatio,
-            stream);
+            dst, mH, mW, mImageH, mImageW, mOffset, mStep, mMinSize, mMaxSize,
+            mAspectRatio, stream);
         return 0;
     }
 
     size_t getSerializationSize() const noexcept override {
-        return (8 + mMinSize.size() + mMaxSize.size() + mAspectRatio.size()) *
+        return (10 + mMinSize.size() + mMaxSize.size() + mAspectRatio.size()) *
                4;
     }
     void serialize(void* buffer) const noexcept override {
         ((int*)buffer)[0] = mH;
         ((int*)buffer)[1] = mW;
-        ((int*)buffer)[2] = mFlip;
-        ((float*)buffer)[3] = mOffset;
-        ((float*)buffer)[4] = mStep;
-        ((int*)buffer)[5] = mMinSize.size();
-        ((int*)buffer)[6] = mMaxSize.size();
-        ((int*)buffer)[7] = mAspectRatio.size();
-        memcpy((float*)buffer + 8, mMinSize.data(), mMinSize.size() * 4);
+        ((int*)buffer)[2] = mImageH;
+        ((int*)buffer)[3] = mImageW;
+        ((int*)buffer)[4] = mFlip;
+        ((float*)buffer)[5] = mOffset;
+        ((float*)buffer)[6] = mStep;
+        ((int*)buffer)[7] = mMinSize.size();
+        ((int*)buffer)[8] = mMaxSize.size();
+        ((int*)buffer)[9] = mAspectRatio.size();
+        memcpy((float*)buffer + 10, mMinSize.data(), mMinSize.size() * 4);
         memcpy(
-            (float*)buffer + 8 + mMinSize.size(), mMaxSize.data(),
+            (float*)buffer + 10 + mMinSize.size(), mMaxSize.data(),
             mMaxSize.size() * 4);
         memcpy(
-            (float*)buffer + 8 + mMinSize.size() + mMaxSize.size(),
+            (float*)buffer + 10 + mMinSize.size() + mMaxSize.size(),
             mAspectRatio.data(), mAspectRatio.size() * 4);
     }
     void configurePlugin(
@@ -127,6 +131,8 @@ class PriorBox2Plugin : public IPluginV2IOExt {
         auto dims = in[0].dims;
         mH = dims.d[1];
         mW = dims.d[2];
+        mImageH = in[1].dims.d[1];
+        mImageW = in[1].dims.d[2];
         auto tmpAspectRatio = std::vector<float>();
         tmpAspectRatio.push_back(1.0f);
         for (int i = 0; i < mAspectRatio.size(); i++) {
@@ -174,9 +180,10 @@ class PriorBox2Plugin : public IPluginV2IOExt {
     }
     friend std::ostream& operator<<(
         std::ostream& os, const PriorBox2Plugin& c) {
-        os << " h: " << c.mH << " w: " << c.mW
-           << " mMinSize: " << c.mMinSize.size() << ":";
+        os << " h: " << c.mH << " w: " << c.mW << " image_h: " << c.mImageH
+           << " image_w: " << c.mImageW;
 
+        os << " mMinSize: " << c.mMinSize.size() << ":";
         for (int i = 0; i < c.mMinSize.size(); i++) {
             os << c.mMinSize[i] << " ";
         }
@@ -199,6 +206,8 @@ class PriorBox2Plugin : public IPluginV2IOExt {
    private:
     int mH;
     int mW;
+    int mImageH;
+    int mImageW;
     int mFlip;
     float mOffset;
     float mStep;
