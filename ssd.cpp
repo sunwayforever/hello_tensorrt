@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     REGISTER_TENSORRT_PLUGIN(PowerPluginCreator);
     REGISTER_TENSORRT_PLUGIN(ReluPluginCreator);
     REGISTER_TENSORRT_PLUGIN(ScalePluginCreator);
-    // REGISTER_TENSORRT_PLUGIN(SoftmaxPluginCreator);
+    REGISTER_TENSORRT_PLUGIN(SoftmaxPluginCreator);
     REGISTER_TENSORRT_PLUGIN(Normalize2PluginCreator);
     REGISTER_TENSORRT_PLUGIN(PriorBox2PluginCreator);
 
