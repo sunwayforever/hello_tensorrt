@@ -46,7 +46,7 @@ __global__ void ConvKernel(
     }
 
     dst[channel * output_h * output_w + output_x * output_w + output_y] =
-        (int8_t)(sum / input_scale * kernel_scale * output_scale );
+        (int8_t)(sum * input_scale * kernel_scale * output_scale );
 }
 
 void ConvolutionInt8(
