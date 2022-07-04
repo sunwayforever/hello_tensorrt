@@ -1,8 +1,8 @@
 diff --git a/parsers/caffe/caffeParser/caffeParser.cpp b/parsers/caffe/caffeParser/caffeParser.cpp
-index 61d7dce..c7fbade 100644
+index 61d7dce..e452dce 100644
 --- a/parsers/caffe/caffeParser/caffeParser.cpp
 +++ b/parsers/caffe/caffeParser/caffeParser.cpp
-@@ -309,6 +309,272 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
+@@ -309,6 +309,326 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
      return f;
  }
  
@@ -247,7 +247,7 @@ index 61d7dce..c7fbade 100644
 +    return f;
 +}
 +
-+std::vector<nvinfer1::PluginField> CaffeParser::parseNormalizeParam2(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++std::vector<nvinfer1::PluginField> CaffeParser::parseNormalize2Param(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
 +{
 +    std::vector<nvinfer1::PluginField> f;
 +    const trtcaffe::NormalizeParameter& p = msg.norm_param();
@@ -272,27 +272,93 @@ index 61d7dce..c7fbade 100644
 +    return f;
 +}
 +
++std::vector<nvinfer1::PluginField> CaffeParser::parseSoftmaxParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& /*weightFactory*/, BlobNameToTensor& /*tensors*/)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::SoftmaxParameter& p = msg.softmax_param();
++    auto* axis = allocMemory<int>();
++    *axis = p.axis();
++    f.emplace_back("axis", axis, PluginFieldType::kINT32, 1);
++    return f;
++}
++    
++std::vector<nvinfer1::PluginField> CaffeParser::parsePriorBox2Param(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::PriorBoxParameter& p = msg.prior_box_param();    
++    
++    int minSizeSize = p.min_size_size();
++    auto* minSize = allocMemory<float>(minSizeSize);
++    for (int i = 0; i < minSizeSize; ++i)
++    {
++        minSize[i] = p.min_size(i);
++    }
++    f.emplace_back("min_size", minSize, PluginFieldType::kFLOAT32, minSizeSize);
++
++    int maxSizeSize = p.max_size_size();
++    auto* maxSize = allocMemory<float>(maxSizeSize);
++    for (int i = 0; i < maxSizeSize; ++i)
++    {
++        maxSize[i] = p.max_size(i);
++    }
++    f.emplace_back("max_size", maxSize, PluginFieldType::kFLOAT32, maxSizeSize);
++
++    int aspectRatiosSize = p.aspect_ratio_size();
++    auto* aspectRatios = allocMemory<float>(aspectRatiosSize);
++    for (int i = 0; i < aspectRatiosSize; ++i)
++    {
++        aspectRatios[i] = p.aspect_ratio(i);
++    }
++    f.emplace_back("aspect_ratio", aspectRatios, PluginFieldType::kFLOAT32, aspectRatiosSize);
++
++    int* flip = allocMemory<int32_t>();
++    *flip = p.flip() ? 1 : 0;
++    f.emplace_back("flip", flip, PluginFieldType::kINT32, 1);
++
++    auto* offset = allocMemory<float>();
++    *offset = p.offset();
++    f.emplace_back("offset", offset, PluginFieldType::kFLOAT32, 1);
++
++    auto* step = allocMemory<float>();
++    *step = p.step();
++    f.emplace_back("step", step, PluginFieldType::kFLOAT32, 1);
++    
++    return f;
++}
++
  const IBlobNameToTensor* CaffeParser::parseBuffers(const uint8_t* deployBuffer,
                                                     std::size_t deployLength,
                                                     const uint8_t* modelBuffer,
-@@ -480,8 +746,8 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+@@ -480,13 +800,17 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                  std::vector<nvinfer1::PluginField> f;
                  if (layerMsg.type() == "Normalize")
                  {
 -                    pluginName = "Normalize_TRT";
 -                    f = parseNormalizeParam(layerMsg, weights, *mBlobNameToTensor);
++                    // pluginName = "Normalize_TRT";
++                    // f = parseNormalizeParam(layerMsg, weights, *mBlobNameToTensor);
 +                    pluginName = "NORMALIZE";
-+                    f = parseNormalizeParam2(layerMsg, weights, *mBlobNameToTensor);
++                    f = parseNormalize2Param(layerMsg, weights, *mBlobNameToTensor);                    
                  }
                  else if (layerMsg.type() == "PriorBox")
                  {
-@@ -498,6 +764,55 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+-                    pluginName = "PriorBox_TRT";
+-                    f = parsePriorBoxParam(layerMsg, weights, *mBlobNameToTensor);
++                    // pluginName = "PriorBox_TRT";
++                    // f = parsePriorBoxParam(layerMsg, weights, *mBlobNameToTensor);
++                    pluginName = "PRIOR_BOX";
++                    f = parsePriorBox2Param(layerMsg, weights, *mBlobNameToTensor);                    
+                 }
+                 else if (layerMsg.type() == "DetectionOutput")
+                 {
+@@ -498,6 +822,56 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                      pluginName = "RPROI_TRT";
                      f = parseRPROIParam(layerMsg, weights, *mBlobNameToTensor);
                  }
 +                else if (layerMsg.type() == "Softmax")
 +                {
 +                    pluginName = "SOFTMAX";
++                    f = parseSoftmaxParam(layerMsg, weights, *mBlobNameToTensor);                    
 +                }
 +                else if (layerMsg.type() == "Power")
 +                {
@@ -343,10 +409,10 @@ index 61d7dce..c7fbade 100644
                  if (mPluginRegistry.find(pluginName) != mPluginRegistry.end())
                  {
 diff --git a/parsers/caffe/caffeParser/caffeParser.h b/parsers/caffe/caffeParser/caffeParser.h
-index 5a24f63..9880f90 100644
+index 5a24f63..1c382c9 100644
 --- a/parsers/caffe/caffeParser/caffeParser.h
 +++ b/parsers/caffe/caffeParser/caffeParser.h
-@@ -60,6 +60,15 @@ private:
+@@ -60,6 +60,17 @@ private:
      std::vector<nvinfer1::PluginField> parseDetectionOutputParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
      std::vector<nvinfer1::PluginField> parseLReLUParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
      std::vector<nvinfer1::PluginField> parseRPROIParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
@@ -358,7 +424,9 @@ index 5a24f63..9880f90 100644
 +    std::vector<nvinfer1::PluginField> parseBatchNormParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
 +    std::vector<nvinfer1::PluginField> parseScaleParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
 +    std::vector<nvinfer1::PluginField> parseEltwiseParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
-+    std::vector<nvinfer1::PluginField> parseNormalizeParam2(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);    
++    std::vector<nvinfer1::PluginField> parseNormalize2Param(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parsePriorBox2Param(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseSoftmaxParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);    
      template <typename T>
      T* allocMemory(int size = 1)
      {

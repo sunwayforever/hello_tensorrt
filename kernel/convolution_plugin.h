@@ -141,9 +141,9 @@ class ConvolutionPlugin : public IPluginV2IOExt {
             ConvolutionInt8(
                 dst, src, mInputScale, mOutputScale, mInputChannel,
                 mOutputChannel, mGroup, mH, mW, mKernelH, mKernelW, mStrideH,
-                mStrideW, mPadH, mPadW,
+                mStrideW, mPadH, mPadW, (float*)mKernelWeights.values,
                 mBiasWeights.count == 0 ? NULL : (float*)mBiasWeights.values,
-                (float*)mBiasWeights.values, stream);
+                stream);
         }
 
         return 0;
