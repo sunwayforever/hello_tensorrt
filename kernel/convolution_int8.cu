@@ -1,6 +1,6 @@
 #include <float.h>
 #include <stdio.h>
-#include <thrust/extrema.h>
+#include <math.h>
 
 __global__ void ConvKernel(
     int8_t* dst, const int8_t* src, int input_scale, int output_scale,
@@ -55,15 +55,15 @@ void ConvolutionInt8(
     int kernel_h, int kernel_w, int stride_h, int stride_w, int padding_h,
     int padding_w, float* kernel, float* bias, cudaStream_t stream) {
     int8_t* biasWeights;
-    int8* bias_I8 = malloc(sizeof(int8_t) * output_channel);
+    int8_t* bias_I8 = (int8_t*)malloc(sizeof(int8_t) * output_channel);
     //  input channel: 1 output channel: 20 h: 28 w: 28 kernel: 5 5 stride: 1 1
     // 20, 24, 24
     int8_t* kernelWeights;
     float kernel_max = kernel[0];
     float kernel_min = kernel[0];
     float kernel_scale = 0;
-    int8_t* kernel_I8 = malloc(sizeof(int8_t)*(input_channel * output_channel * kernel_h * kernel_w));
-    for(int i=0, i<input_channel * output_channel * kernel_h * kernel_w, i++){
+    int8_t* kernel_I8 = (int8_t*)malloc(sizeof(int8_t)*(input_channel * output_channel * kernel_h * kernel_w));
+    for(int i=0; i<input_channel * output_channel * kernel_h * kernel_w; i++){
         if (kernel[i] > kernel_max){
             kernel_max = kernel[i];
         }
@@ -74,12 +74,12 @@ void ConvolutionInt8(
 
     kernel_scale = (float)max(abs(kernel_max),abs(kernel_min))/127;
     
-    for (int i=0, i<input_channel * output_channel * kernel_h * kernel_w, i++){
+    for (int i=0; i<input_channel * output_channel * kernel_h * kernel_w; i++){
         kernel_I8[i] = (int8_t)(kernel[i]/kernel_scale);
     }
 
     for (int i = 0; i < output_channel; i++){
-        bias_I8 = (int8_t)(bias/(kernel_scale * input_scale));
+        bias_I8[i] = (int8_t)(bias[i]/(kernel_scale * input_scale));
     }
     
     cudaMalloc(
