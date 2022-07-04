@@ -10,23 +10,27 @@
 #include "kernel/normalize_plugin.h"
 #include "kernel/pooling_plugin.h"
 #include "kernel/power_plugin.h"
+#include "kernel/prior_box_plugin.h"
 #include "kernel/relu_plugin.h"
 #include "kernel/scale_plugin.h"
 #include "kernel/softmax_plugin.h"
 
-#define REGISTER_ALL_PLUGINS                                 \
-    do {                                                     \
-        REGISTER_TENSORRT_PLUGIN(SoftmaxPluginCreator);      \
-        REGISTER_TENSORRT_PLUGIN(PowerPluginCreator);        \
-        REGISTER_TENSORRT_PLUGIN(ReluPluginCreator);         \
-        REGISTER_TENSORRT_PLUGIN(PoolingPluginCreator);      \
-        REGISTER_TENSORRT_PLUGIN(InnerProductPluginCreator); \
-        REGISTER_TENSORRT_PLUGIN(ConvolutionPluginCreator);  \
-        REGISTER_TENSORRT_PLUGIN(LRNPluginCreator);          \
-        REGISTER_TENSORRT_PLUGIN(BatchNormPluginCreator);    \
-        REGISTER_TENSORRT_PLUGIN(ScalePluginCreator);        \
-        REGISTER_TENSORRT_PLUGIN(EltwisePluginCreator);      \
-    } while (0)
+#define PLUGIN_LIST(ITEM)              \
+    ITEM(Eltwise, ELTWISE);            \
+    ITEM(BatchNorm, BATCH_NORM);       \
+    ITEM(Convolution, CONVOLUTION);    \
+    ITEM(InnerProduct, INNER_PRODUCT); \
+    ITEM(LRN, LRN);                    \
+    ITEM(Pooling, POOLING);            \
+    ITEM(Power, POWER);                \
+    ITEM(Relu, RELU);                  \
+    ITEM(Scale, SCALE);                \
+    ITEM(Softmax, SOFTMAX);            \
+    ITEM(Normalize2, NORMALIZE);        \
+    ITEM(PriorBox2, PRIOR_BOX);
+
+#define REGISTER_PLUGIN(plugin_type, plugin_name) \
+    REGISTER_TENSORRT_PLUGIN(plugin_type##PluginCreator);
 
 #define DECLARE_PLUGIN_CREATOR(plugin_type, plugin_name)                       \
     class plugin_type##PluginCreator : public IPluginCreator {                 \
@@ -66,16 +70,8 @@
         PluginFieldCollection mFieldCollection{0, nullptr};                    \
     };
 
-DECLARE_PLUGIN_CREATOR(Eltwise, ELTWISE);
-DECLARE_PLUGIN_CREATOR(BatchNorm, BATCH_NORM);
-DECLARE_PLUGIN_CREATOR(Convolution, CONVOLUTION);
-DECLARE_PLUGIN_CREATOR(InnerProduct, INNER_PRODUCT);
-DECLARE_PLUGIN_CREATOR(LRN, LRN);
-DECLARE_PLUGIN_CREATOR(Normalize, NORMALIZE);
-DECLARE_PLUGIN_CREATOR(Pooling, POOLING);
-DECLARE_PLUGIN_CREATOR(Power, POWER);
-DECLARE_PLUGIN_CREATOR(Relu, RELU);
-DECLARE_PLUGIN_CREATOR(Scale, SCALE);
-DECLARE_PLUGIN_CREATOR(Softmax, SOFTMAX);
+PLUGIN_LIST(DECLARE_PLUGIN_CREATOR);
+
+#define REGISTER_ALL_PLUGINS PLUGIN_LIST(REGISTER_PLUGIN);
 
 #endif  // PLUGIN_H

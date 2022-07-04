@@ -15,9 +15,9 @@ extern void Normalize(
     int channel_shared, float eps, float* scale_weights, void* workspace,
     cudaStream_t);
 
-class NormalizePlugin : public IPluginV2IOExt {
+class Normalize2Plugin : public IPluginV2IOExt {
    public:
-    NormalizePlugin(const PluginFieldCollection fc) {
+    Normalize2Plugin(const PluginFieldCollection fc) {
         for (int i = 0; i < fc.nbFields; i++) {
             auto field = fc.fields[i];
             if (std::string(field.name) == "across_spatial") {
@@ -35,7 +35,7 @@ class NormalizePlugin : public IPluginV2IOExt {
         }
     }
 
-    NormalizePlugin(const void* data, size_t length) {
+    Normalize2Plugin(const void* data, size_t length) {
         mChannel = ((int*)data)[0];
         mH = ((int*)data)[1];
         mW = ((int*)data)[2];
@@ -115,7 +115,7 @@ class NormalizePlugin : public IPluginV2IOExt {
     const char* getPluginVersion() const noexcept override { return "1"; }
     void destroy() noexcept override { delete this; }
     IPluginV2Ext* clone() const noexcept override {
-        auto* plugin = new NormalizePlugin(*this);
+        auto* plugin = new Normalize2Plugin(*this);
         return plugin;
     }
     void setPluginNamespace(const char* libNamespace) noexcept override {
@@ -134,7 +134,7 @@ class NormalizePlugin : public IPluginV2IOExt {
     }
 
     friend std::ostream& operator<<(
-        std::ostream& os, const NormalizePlugin& c) {
+        std::ostream& os, const Normalize2Plugin& c) {
         // clang-format off
         return (os
                 << " channel: " << c.mChannel
