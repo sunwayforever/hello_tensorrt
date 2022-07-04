@@ -19,7 +19,7 @@ __global__ void ConvKernel(
     }
     // input channel: 1 output channel: 20 h: 28 w: 28 kernel: 5 5 stride: 1 1
     // NCHW
-    float sum = 0.0f;
+    int sum = 0.0f;
     if (bias != NULL) {
         sum += bias[channel];
     }
@@ -40,13 +40,13 @@ __global__ void ConvKernel(
                 int8_t kernel_value = kernel
                     [channel * input_channel * kernel_h * kernel_w +
                      k * kernel_h * kernel_w + i * kernel_w + j];
-                sum += (float)src_value * kernel_value;
+                sum += src_value * kernel_value;
             }
         }
     }
 
     dst[channel * output_h * output_w + output_x * output_w + output_y] =
-        (int)(sum / input_scale * kernel_scale * output_scale );
+        (int8_t)(sum / input_scale * kernel_scale * output_scale );
 }
 
 void ConvolutionInt8(
