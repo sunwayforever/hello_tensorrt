@@ -6,7 +6,7 @@ __global__ void ConvKernel(
     int8_t* dst, const int8_t* src, int input_scale, int output_scale,
     int input_channel, int output_channel, int h, int w, int kernel_h,
     int kernel_w, int stride_h, int stride_w, int output_h, int output_w,
-    int padding_h, int padding_w, int8_t* kernel, int kernel_scale, int8_t* bias) {
+    int padding_h, int padding_w, int8_t* kernel, float kernel_scale, int8_t* bias) {
     int global_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     int channel = global_id / output_h / output_w;
@@ -46,7 +46,7 @@ __global__ void ConvKernel(
     }
 
     dst[channel * output_h * output_w + output_x * output_w + output_y] =
-        (int)(sum / input_scale / kernel_scale * output_scale );
+        (int)(sum / input_scale * kernel_scale * output_scale );
 }
 
 void ConvolutionInt8(
