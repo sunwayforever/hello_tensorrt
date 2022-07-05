@@ -10,13 +10,17 @@
 #include "NvInfer.h"
 #include "NvInferRuntime.h"
 
+#include <math.h>
+
 extern void Convolution(
     float*, const float*, int, int, int, int, int, int, int, int, int, int, int,
     float*, float*, void*, cudaStream_t);
 
 extern void ConvolutionInt8(
-    int8_t*, const int8_t*, int, int, int, int, int, int, int, int, int, int,
-    int, int, int, float*, float*, cudaStream_t);
+    int8_t*, const int8_t*, float, float, float,
+    int, int, int, int, int,
+    int, int, int, int, int,
+    int, int8_t*, int8_t*, cudaStream_t);
 
 using namespace nvinfer1;
 
@@ -74,8 +78,10 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         int kc = ((int*)data)[11];
         int bc = ((int*)data)[12];
         mType = ((int*)data)[13];
-        mInputScale = ((int*)data)[14];
-        mOutputScale = ((int*)data)[15];
+        //mInputScale = ((int*)data)[14];
+        //mOutputScale = ((int*)data)[15];
+        mInputScale = ((float*)data)[14]; //int-float-4byte
+        mOutputScale =((float*)data)[15]; //int-float-4byte
         float* kernel = (float*)malloc(kc * 4);
         float* bias = (float*)malloc(bc * 4);
         memcpy(kernel, ((int*)data) + 16, kc * 4);
@@ -138,15 +144,59 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         } else {
             int8_t* dst = reinterpret_cast<int8_t*>(outputs[0]);
             const int8_t* src = reinterpret_cast<const int8_t*>(inputs[0]);
-            ConvolutionInt8(
+            /*ConvolutionInt8(
                 dst, src, mInputScale, mOutputScale, mInputChannel,
                 mOutputChannel, mGroup, mH, mW, mKernelH, mKernelW, mStrideH,
                 mStrideW, mPadH, mPadW, (float*)mKernelWeights.values,
                 mBiasWeights.count == 0 ? NULL : (float*)mBiasWeights.values,
-                stream);
+                stream);*/
+            ConvolutionInt8(
+                dst, src, mInputScale, mOutputScale, mKernelScale,
+                mInputChannel, mOutputChannel, mGroup, mH, mW,
+                mKernelH, mKernelW, mStrideH, mStrideW, mPadH,
+                mPadW, mKernelWeights_I8, mBiasWeights.count == 0 ? NULL : mBiasWeights_I8, stream);
         }
 
         return 0;
+    }
+
+    void configurePlugin(
+        const PluginTensorDesc* in, int nbInput, const PluginTensorDesc* out,
+        int nbOutput) noexcept override {
+        mType = (int)in[0].type;
+        mInputScale = in[0].scale;
+        mOutputScale = out[0].scale;
+        auto dims = in[0].dims;
+        mInputChannel = dims.d[0];
+        mH = dims.d[1];
+        mW = dims.d[2];
+
+        //
+        mBiasWeights_I8 = (int8_t*)malloc(sizeof(int8_t) * mOutputChannel);
+        mKernelWeights_I8 = (int8_t*)malloc(sizeof(int8_t)*(mInputChannel * mOutputChannel * mKernelH * mKernelW));
+        float kernel_max = ((float*)mKernelWeights.values)[0];
+        float kernel_min = ((float*)mKernelWeights.values)[0];
+        for(int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
+            if (((float*)mKernelWeights.values)[i] > kernel_max){
+                kernel_max = ((float*)mKernelWeights.values)[i];
+            }
+            if (((float*)mKernelWeights.values)[i] < kernel_min){
+                kernel_min = ((float*)mKernelWeights.values)[i];
+            }
+        }
+
+        mKernelScale = (float)std::max(abs(kernel_max),abs(kernel_min))/127;
+
+        for (int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
+            mKernelWeights_I8[i] = (int8_t)(((float*)(mKernelWeights.values))[i]/mKernelScale); //Q
+        }
+
+        if (mBiasWeights.count != 0){
+            for (int i = 0; i < mOutputChannel; i++){
+                mBiasWeights_I8[i] = (int8_t)(((float*)(mBiasWeights.values))[i]/(mKernelScale * mInputScale));//Q
+            }
+        }
+        //
     }
 
     size_t getSerializationSize() const noexcept override {
@@ -168,8 +218,10 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         ((int*)buffer)[11] = mKernelWeights.count;
         ((int*)buffer)[12] = mBiasWeights.count;
         ((int*)buffer)[13] = mType;
-        ((int*)buffer)[14] = mInputScale;
-        ((int*)buffer)[15] = mOutputScale;
+        //((int*)buffer)[14] = mInputScale;
+        //((int*)buffer)[15] = mOutputScale;
+        ((float*)buffer)[14] = mInputScale; //int-float-4byte
+        ((float*)buffer)[15] = mOutputScale; //int-float-4byte
         memcpy(
             ((int*)buffer) + 16, mKernelWeights.values,
             mKernelWeights.count * 4);
@@ -178,17 +230,6 @@ class ConvolutionPlugin : public IPluginV2IOExt {
             mBiasWeights.count * 4);
     }
 
-    void configurePlugin(
-        const PluginTensorDesc* in, int nbInput, const PluginTensorDesc* out,
-        int nbOutput) noexcept override {
-        mType = (int)in[0].type;
-        mInputScale = in[0].scale;
-        mOutputScale = out[0].scale;
-        auto dims = in[0].dims;
-        mInputChannel = dims.d[0];
-        mH = dims.d[1];
-        mW = dims.d[2];
-    }
 
     bool supportsFormatCombination(
         int pos, const PluginTensorDesc* inOut, int nbInputs,
@@ -266,7 +307,12 @@ class ConvolutionPlugin : public IPluginV2IOExt {
     int mPadH;
     int mPadW;
     int mType;
-    int mInputScale;
-    int mOutputScale;
+    //int mInputScale;
+    //int mOutputScale;
+    float mInputScale;
+    float mOutputScale;
+    float mKernelScale;
+    int8_t* mKernelWeights_I8;
+    int8_t* mBiasWeights_I8;
     std::string mNamespace;
 };
