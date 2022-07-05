@@ -214,7 +214,12 @@ bool SampleMNIST::infer() {
     cudaStreamSynchronize(stream);
     cudaStreamDestroy(stream);
     printf("output:\n");
-    for (int i = 0; i < outputSize; i++) {
+    for (int i = 0; i < std::min<int>(outputSize, 16); i++) {
+        std::cout << ((float*)hostOutputBuffer)[i] << " ";
+    }
+    std::cout << std::endl;
+    for (int i = outputSize - 1; i >= std::max<int>(0, outputSize - 16);
+         i--) {
         std::cout << ((float*)hostOutputBuffer)[i] << " ";
     }
     std::cout << std::endl;

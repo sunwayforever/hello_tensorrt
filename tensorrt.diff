@@ -1,8 +1,8 @@
 diff --git a/parsers/caffe/caffeParser/caffeParser.cpp b/parsers/caffe/caffeParser/caffeParser.cpp
-index 61d7dce..e452dce 100644
+index 61d7dce..4f91936 100644
 --- a/parsers/caffe/caffeParser/caffeParser.cpp
 +++ b/parsers/caffe/caffeParser/caffeParser.cpp
-@@ -309,6 +309,326 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
+@@ -309,6 +309,345 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
      return f;
  }
  
@@ -162,7 +162,26 @@ index 61d7dce..e452dce 100644
 +    int *group = allocMemory<int>();
 +    *group = p.group();
 +    f.emplace_back("group", group, PluginFieldType::kINT32, 1);
-+    
++
++    int *dilation_h = allocMemory<int>();
++    int *dilation_w = allocMemory<int>();
++    switch (p.dilation_size()) {
++        case 0:
++            *dilation_h = 1;
++            *dilation_w = 1;
++            break;
++        case 1:
++            *dilation_h = p.dilation(0);
++            *dilation_w = p.dilation(0);
++            break;
++        case 2:
++            *dilation_h = p.dilation(0);
++            *dilation_w = p.dilation(1);
++            break;
++    }
++    f.emplace_back("dilation_h", dilation_h, PluginFieldType::kINT32, 1);
++    f.emplace_back("dilation_w", dilation_w, PluginFieldType::kINT32, 1);    
++
 +    return f;
 +}
 +
@@ -329,7 +348,7 @@ index 61d7dce..e452dce 100644
  const IBlobNameToTensor* CaffeParser::parseBuffers(const uint8_t* deployBuffer,
                                                     std::size_t deployLength,
                                                     const uint8_t* modelBuffer,
-@@ -480,13 +800,17 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+@@ -480,13 +819,17 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                  std::vector<nvinfer1::PluginField> f;
                  if (layerMsg.type() == "Normalize")
                  {
@@ -351,7 +370,7 @@ index 61d7dce..e452dce 100644
                  }
                  else if (layerMsg.type() == "DetectionOutput")
                  {
-@@ -498,6 +822,56 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+@@ -498,6 +841,56 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                      pluginName = "RPROI_TRT";
                      f = parseRPROIParam(layerMsg, weights, *mBlobNameToTensor);
                  }

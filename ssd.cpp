@@ -5,7 +5,7 @@ int main(int argc, char** argv) {
     // REGISTER_ALL_PLUGINS;
     REGISTER_TENSORRT_PLUGIN(EltwisePluginCreator);
     REGISTER_TENSORRT_PLUGIN(BatchNormPluginCreator);
-    // REGISTER_TENSORRT_PLUGIN(ConvolutionPluginCreator);
+    REGISTER_TENSORRT_PLUGIN(ConvolutionPluginCreator);
     REGISTER_TENSORRT_PLUGIN(InnerProductPluginCreator);
     REGISTER_TENSORRT_PLUGIN(LRNPluginCreator);
     REGISTER_TENSORRT_PLUGIN(PoolingPluginCreator);

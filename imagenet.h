@@ -114,7 +114,7 @@ class ImageNet {
         for (int i = 0; i < std::min<int>(outputSize, 16); i++) {
             std::cout << ((float*)hostOutputBuffer)[i] << " ";
         }
-        printf("\n");
+        std::cout << std::endl;
         for (int i = outputSize - 1; i >= std::max<int>(0, outputSize - 16);
              i--) {
             std::cout << ((float*)hostOutputBuffer)[i] << " ";

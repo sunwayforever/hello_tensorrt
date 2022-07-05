@@ -13,8 +13,10 @@
 #include <math.h>
 
 extern void Convolution(
-    float*, const float*, int, int, int, int, int, int, int, int, int, int, int,
-    float*, float*, void*, cudaStream_t);
+    float* dst, const float* src, int input_channel, int output_channel,
+    int group, int h, int w, int kernel_h, int kernel_w, int stride_h,
+    int stride_w, int pad_h, int pad_w, int dilation_h, int dilation_w,
+    float* kernel, float* bias, void* workspace, cudaStream_t);
 
 extern void ConvolutionInt8(
     int8_t*, const int8_t*, float, float, float,
@@ -59,6 +61,12 @@ class ConvolutionPlugin : public IPluginV2IOExt {
             if (std::string(field.name) == "pad_w") {
                 this->mPadW = *((int*)field.data);
             }
+            if (std::string(field.name) == "dilation_h") {
+                this->mDilationH = *((int*)field.data);
+            }
+            if (std::string(field.name) == "dilation_w") {
+                this->mDilationW = *((int*)field.data);
+            }
         }
     }
 
@@ -82,10 +90,12 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         //mOutputScale = ((int*)data)[15];
         mInputScale = ((float*)data)[14]; //int-float-4byte
         mOutputScale =((float*)data)[15]; //int-float-4byte
+        mDilationH = ((int*)data)[16];
+        mDilationW = ((int*)data)[17];
         float* kernel = (float*)malloc(kc * 4);
         float* bias = (float*)malloc(bc * 4);
-        memcpy(kernel, ((int*)data) + 16, kc * 4);
-        memcpy(bias, ((int*)data) + 16 + kc, bc * 4);
+        memcpy(kernel, ((int*)data) + 18, kc * 4);
+        memcpy(bias, ((int*)data) + 18 + kc, bc * 4);
         mKernelWeights = Weights{
             .type = DataType::kFLOAT,
             .values = kernel,
@@ -117,8 +127,12 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         outputDims.nbDims = 3;
         outputDims.d[0] = mOutputChannel;
         // NOTE: `floor` for convolution
-        outputDims.d[1] = floor(h + 2 * mPadH - mKernelH, mStrideH) + 1;
-        outputDims.d[2] = floor(w + 2 * mPadW - mKernelW, mStrideW) + 1;
+        outputDims.d[1] =
+            floor(h + 2 * mPadH - (mDilationH * (mKernelH - 1) + 1), mStrideH) +
+            1;
+        outputDims.d[2] =
+            floor(w + 2 * mPadW - (mDilationW * (mKernelW - 1) + 1), mStrideW) +
+            1;
 
         return outputDims;
     }
@@ -138,7 +152,7 @@ class ConvolutionPlugin : public IPluginV2IOExt {
             Convolution(
                 dst, src, mInputChannel, mOutputChannel, mGroup, mH, mW,
                 mKernelH, mKernelW, mStrideH, mStrideW, mPadH, mPadW,
-                (float*)mKernelWeights.values,
+                mDilationH, mDilationW, (float*)mKernelWeights.values,
                 mBiasWeights.count == 0 ? NULL : (float*)mBiasWeights.values,
                 workspace, stream);
         } else {
@@ -200,7 +214,7 @@ class ConvolutionPlugin : public IPluginV2IOExt {
     }
 
     size_t getSerializationSize() const noexcept override {
-        return (16 + mKernelWeights.count + mBiasWeights.count) * 4;
+        return (18 + mKernelWeights.count + mBiasWeights.count) * 4;
     }
 
     void serialize(void* buffer) const noexcept override {
@@ -222,11 +236,13 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         //((int*)buffer)[15] = mOutputScale;
         ((float*)buffer)[14] = mInputScale; //int-float-4byte
         ((float*)buffer)[15] = mOutputScale; //int-float-4byte
+        ((int*)buffer)[16] = mDilationH;
+        ((int*)buffer)[17] = mDilationW;
         memcpy(
-            ((int*)buffer) + 16, mKernelWeights.values,
+            ((int*)buffer) + 18, mKernelWeights.values,
             mKernelWeights.count * 4);
         memcpy(
-            ((int*)buffer) + 16 + mKernelWeights.count, mBiasWeights.values,
+            ((int*)buffer) + 18 + mKernelWeights.count, mBiasWeights.values,
             mBiasWeights.count * 4);
     }
 
@@ -285,6 +301,7 @@ class ConvolutionPlugin : public IPluginV2IOExt {
                 << " stride: " << c.mStrideH << " " << c.mStrideW
                 << " pad: " << c.mPadH << " " << c.mPadW
                 << " type: " << c.mType << " scale: " << c.mInputScale << " " << c.mOutputScale
+                << " dilation: " << c.mDilationH << " " << c.mDilationW
                 << " kernel weights: " << c.mKernelWeights.count
                 << " bias weights: " << c.mBiasWeights.count
                 << std::endl
@@ -307,6 +324,7 @@ class ConvolutionPlugin : public IPluginV2IOExt {
     int mPadH;
     int mPadW;
     int mType;
+<<<<<<< HEAD
     //int mInputScale;
     //int mOutputScale;
     float mInputScale;
@@ -314,5 +332,11 @@ class ConvolutionPlugin : public IPluginV2IOExt {
     float mKernelScale;
     int8_t* mKernelWeights_I8;
     int8_t* mBiasWeights_I8;
+=======
+    int mInputScale;
+    int mOutputScale;
+    int mDilationH;
+    int mDilationW;
+>>>>>>> d3c359a02fca964372316c6cc45ae0b63de8375a
     std::string mNamespace;
 };
