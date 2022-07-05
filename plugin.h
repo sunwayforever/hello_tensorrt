@@ -8,6 +8,7 @@
 #include "kernel/inner_product_plugin.h"
 #include "kernel/lrn_plugin.h"
 #include "kernel/normalize_plugin.h"
+#include "kernel/permute_plugin.h"
 #include "kernel/pooling_plugin.h"
 #include "kernel/power_plugin.h"
 #include "kernel/prior_box_plugin.h"
@@ -26,7 +27,8 @@
     ITEM(Relu, RELU);                  \
     ITEM(Scale, SCALE);                \
     ITEM(Softmax, SOFTMAX);            \
-    ITEM(Normalize2, NORMALIZE);        \
+    ITEM(Permute, PERMUTE);            \
+    ITEM(Normalize2, NORMALIZE);       \
     ITEM(PriorBox2, PRIOR_BOX);
 
 #define REGISTER_PLUGIN(plugin_type, plugin_name) \

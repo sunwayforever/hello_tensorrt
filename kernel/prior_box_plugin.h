@@ -95,7 +95,6 @@ class PriorBox2Plugin : public IPluginV2IOExt {
         int batchSize, const void* const* inputs, void* const* outputs,
         void* workspace, cudaStream_t stream) noexcept override {
         float* dst = reinterpret_cast<float*>(outputs[0]);
-        std::cout << *this;
         PriorBox(
             dst, mH, mW, mImageH, mImageW, mOffset, mStep, mMinSize, mMaxSize,
             mAspectRatio, stream);

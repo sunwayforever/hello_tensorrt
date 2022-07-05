@@ -1,6 +1,6 @@
 CPPFLAGS := -I /opt/anaconda3/envs/cuda-11/include/ -I/usr/include/opencv4
 # CPPFLAGS += -DINT8
-CXXFLAGS := -g -O0 -MMD
+CXXFLAGS := -g -O0 -MMD -Wno-deprecated-declarations
 LDFLAGS := -L/opt/anaconda3/envs/cuda-11/lib -L/opt/anaconda3/envs/cuda-11/lib64 -L${PWD}/TensorRT/build/out
 LDLIBS := -lnvcaffeparser -lnvinfer -lnvinfer_plugin -lcudnn -lcudart -lstdc++ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
 
@@ -22,7 +22,7 @@ CUDA_OBJ := $(patsubst %.cu,%.o,${CUDA_KERNEL_SRC})
 %.o:%.cu
 	${NVCC} -c $^ -o $@
 
-.PRECIOUS: ${CUDA_OBJ}
+.PRECIOUS: ${CUDA_OBJ} ${OBJ}
 
 %.elf:%.o ${CUDA_OBJ}
 	gcc $^ ${LDFLAGS} ${LDLIBS} -o $@

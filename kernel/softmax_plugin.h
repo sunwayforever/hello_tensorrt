@@ -48,7 +48,6 @@ class SoftmaxPlugin : public IPluginV2IOExt {
         void* workspace, cudaStream_t stream) noexcept override {
         float* dst = reinterpret_cast<float*>(outputs[0]);
         const float* src = reinterpret_cast<const float*>(inputs[0]);
-        std::cout << *this;
         Softmax(dst, const_cast<float*>(src), mDims, mNewAxis, stream);
         return 0;
     }
