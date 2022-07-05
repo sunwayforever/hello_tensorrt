@@ -6,7 +6,7 @@ import subprocess
 
 app =sys.argv[1][0:-4]
 print(f"testing {app}: ", end = "", flush = True)
-a = subprocess.run(f"{app}.elf", stdout=subprocess.PIPE, stderr = subprocess.PIPE)
+a = subprocess.run(f"./{app}.elf", stdout=subprocess.PIPE, stderr = subprocess.PIPE)
 a = a.stdout.decode("utf-8").splitlines()[-2:]
 a = a[0] + a[1]
 
