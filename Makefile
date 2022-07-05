@@ -9,6 +9,7 @@ SRC := $(wildcard *.cpp)
 OBJ := $(patsubst %.cpp,%.o,${SRC})
 APP := $(patsubst %.cpp,%.elf,${SRC})
 RUN_APP := $(patsubst %.cpp,run-%,${SRC})
+TEST_APP := $(patsubst %.cpp,test-%,${SRC})
 
 all: ${APP}
 
@@ -28,6 +29,11 @@ CUDA_OBJ := $(patsubst %.cu,%.o,${CUDA_KERNEL_SRC})
 
 ${RUN_APP}:run-%:%.elf
 	LD_LIBRARY_PATH="${PWD}/TensorRT/build/out:/opt/anaconda3/envs/cuda-11/lib64:/opt/anaconda3/envs/cuda-11/lib"  ./$<
+
+${TEST_APP}:test-%:%.elf
+	@LD_LIBRARY_PATH="${PWD}/TensorRT/build/out:/opt/anaconda3/envs/cuda-11/lib64:/opt/anaconda3/envs/cuda-11/lib"  python3 ./run-test.py $<
+
+test-all:${TEST_APP}
 
 clean:
 	rm ${OBJ} ${APP} ${DEP} ${CUDA_OBJ}
