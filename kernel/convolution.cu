@@ -6,7 +6,7 @@ __global__ void ConvKernel(
     float* dst, const float* src, int input_channel, int output_channel,
     int group, int h, int w, int kernel_h, int kernel_w, int stride_h,
     int stride_w, int output_h, int output_w, int padding_h, int padding_w,
-    float* kernel, float* bias) {
+    int dilation_h, int dilation_w, float* kernel, float* bias) {
     int global_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     int channel = global_id / output_h / output_w;
@@ -27,8 +27,8 @@ __global__ void ConvKernel(
         for (int k = 0; k < input_channel; k++) {
             for (int i = 0; i < kernel_h; i++) {
                 for (int j = 0; j < kernel_w; j++) {
-                    int orig_x = output_x * stride_h + i;
-                    int orig_y = output_y * stride_w + j;
+                    int orig_x = output_x * stride_h + i * dilation_h;
+                    int orig_y = output_y * stride_w + j * dilation_w;
 
                     float src_value = 0.0;
                     if (orig_x >= padding_h && orig_x < padding_h + h &&
@@ -56,8 +56,8 @@ __global__ void ConvKernel(
         for (int k = channel * step; k < channel * step + step; k++) {
             for (int i = 0; i < kernel_h; i++) {
                 for (int j = 0; j < kernel_w; j++) {
-                    int orig_x = output_x * stride_h + i;
-                    int orig_y = output_y * stride_w + j;
+                    int orig_x = output_x * stride_h + i * dilation_h;
+                    int orig_y = output_y * stride_w + j * dilation_w;
 
                     float src_value = 0.0;
                     if (orig_x >= padding_h && orig_x < padding_h + h &&
@@ -81,8 +81,8 @@ __global__ void ConvKernel(
 void Convolution(
     float* dst, const float* src, int input_channel, int output_channel,
     int group, int h, int w, int kernel_h, int kernel_w, int stride_h,
-    int stride_w, int padding_h, int padding_w, float* kernel, float* bias,
-    void* workspace, cudaStream_t stream) {
+    int stride_w, int padding_h, int padding_w, int dilation_h, int dilation_w,
+    float* kernel, float* bias, void* workspace, cudaStream_t stream) {
     float* kernelWeights = (float*)workspace;
     float* biasWeights = NULL;
     //  input channel: 1 output channel: 20 h: 28 w: 28 kernel: 5 5 stride: 1 1
@@ -107,12 +107,14 @@ void Convolution(
     }
 
     // NOTE: `floor` for convolution
-    int output_h = (h - kernel_h + 2 * padding_h) / stride_h + 1;
-    int output_w = (w - kernel_w + 2 * padding_w) / stride_w + 1;
+    int output_h =
+        (h - (dilation_h * (kernel_h - 1) + 1) + 2 * padding_h) / stride_h + 1;
+    int output_w =
+        (w - (dilation_w * (kernel_w - 1) + 1) + 2 * padding_w) / stride_w + 1;
 
     int total_size = output_channel * output_h * output_w;
     ConvKernel<<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
         dst, src, input_channel, output_channel, group, h, w, kernel_h,
         kernel_w, stride_h, stride_w, output_h, output_w, padding_h, padding_w,
-        kernelWeights, biasWeights);
+        dilation_h, dilation_w, kernelWeights, biasWeights);
 }
