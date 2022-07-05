@@ -7,10 +7,11 @@
 #include "NvCaffeParser.h"
 #include "NvInfer.h"
 #include "NvInferRuntime.h"
+#include "batch_norm_param.h"
 
 extern void BatchNorm(
-    float*, const float*, int, int, int, float, float, float*, float*,
-    cudaStream_t);
+    float* dst, const float* src, struct BatchNormParam, float* mean,
+    float* var, void* workspace, cudaStream_t stream);
 
 using namespace nvinfer1;
 
@@ -20,46 +21,30 @@ class BatchNormPlugin : public IPluginV2IOExt {
         for (int i = 0; i < fc.nbFields; i++) {
             auto field = fc.fields[i];
             if (std::string(field.name) == "eps") {
-                this->mEps = *((float*)field.data);
+                mParam.mEps = *((float*)field.data);
             }
             if (std::string(field.name) == "moving_average") {
-                this->mMovingAverage = *((float*)field.data);
+                mParam.mMovingAverage = *((float*)field.data);
             }
             if (std::string(field.name) == "mean_weights") {
-                this->mMeanWeights = *(Weights*)field.data;
+                mMeanWeights = (float*)((Weights*)field.data)->values;
             }
             if (std::string(field.name) == "var_weights") {
-                this->mVarWeights = *(Weights*)field.data;
+                mVarWeights = (float*)((Weights*)field.data)->values;
             }
         }
     }
 
     BatchNormPlugin(const void* data, size_t length) {
-        mChannel = ((int*)data)[0];
-        mH = ((int*)data)[1];
-        mW = ((int*)data)[2];
-        mEps = ((float*)data)[3];
-        mMovingAverage = ((float*)data)[4];
-        int mc = ((int*)data)[5];
-        int vc = ((int*)data)[6];
+        mParam = *(struct BatchNormParam*)data;
 
-        float* mean = (float*)malloc(mc * 4);
-        float* var = (float*)malloc(vc * 4);
-
-        memcpy(mean, ((int*)data) + 7, mc * 4);
-        memcpy(var, ((int*)data) + 7 + mc, vc * 4);
-
-        mMeanWeights = Weights{
-            .type = DataType::kFLOAT,
-            .values = mean,
-            .count = mc,
-        };
-
-        mVarWeights = Weights{
-            .type = DataType::kFLOAT,
-            .values = var,
-            .count = vc,
-        };
+        int weightSize = mParam.mChannel * 4;
+        float* mean = (float*)malloc(weightSize);
+        float* var = (float*)malloc(weightSize);
+        memcpy(mean, (char*)data + sizeof(mParam), weightSize);
+        memcpy(var, (char*)data + sizeof(mParam) + weightSize, weightSize);
+        mMeanWeights = mean;
+        mVarWeights = var;
     }
 
    public:
@@ -73,7 +58,7 @@ class BatchNormPlugin : public IPluginV2IOExt {
     int initialize() noexcept override { return 0; }
     void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
-        return 0;
+        return mParam.mChannel * 8;
     }
 
     int enqueue(
@@ -82,36 +67,30 @@ class BatchNormPlugin : public IPluginV2IOExt {
         float* dst = reinterpret_cast<float*>(outputs[0]);
         const float* src = reinterpret_cast<const float*>(inputs[0]);
         BatchNorm(
-            dst, src, mChannel, mH, mW, mEps, mMovingAverage,
-            (float*)mMeanWeights.values, (float*)mVarWeights.values, stream);
+            dst, src, mParam, mMeanWeights, mVarWeights, workspace, stream);
         return 0;
     }
 
     size_t getSerializationSize() const noexcept override {
-        return (7 + mMeanWeights.count + mVarWeights.count) * 4;
+        return sizeof(mParam) + mParam.mChannel * 8;
     }
 
     void serialize(void* buffer) const noexcept override {
-        ((int*)buffer)[0] = mChannel;
-        ((int*)buffer)[1] = mH;
-        ((int*)buffer)[2] = mW;
-        ((float*)buffer)[3] = mEps;
-        ((float*)buffer)[4] = mMovingAverage;
-        ((int*)buffer)[5] = mMeanWeights.count;
-        ((int*)buffer)[6] = mVarWeights.count;
-        memcpy(((int*)buffer) + 7, mMeanWeights.values, mMeanWeights.count * 4);
+        int weightSize = mParam.mChannel * 4;
+        *((struct BatchNormParam*)buffer) = mParam;
+        memcpy((char*)buffer + sizeof(mParam), mMeanWeights, weightSize);
         memcpy(
-            ((int*)buffer) + 7 + mMeanWeights.count, mVarWeights.values,
-            mVarWeights.count * 4);
+            (char*)buffer + sizeof(mParam) + weightSize, mVarWeights,
+            weightSize);
     }
 
     void configurePlugin(
         const PluginTensorDesc* in, int nbInput, const PluginTensorDesc* out,
         int nbOutput) noexcept override {
         auto dims = in[0].dims;
-        mChannel = dims.d[0];
-        mH = dims.d[1];
-        mW = dims.d[2];
+        mParam.mChannel = dims.d[0];
+        mParam.mH = dims.d[1];
+        mParam.mW = dims.d[2];
     }
 
     bool supportsFormatCombination(
@@ -153,25 +132,19 @@ class BatchNormPlugin : public IPluginV2IOExt {
         std::ostream& os, const BatchNormPlugin& c) {
         // clang-format off
         return (os
-                << " channel: " << c.mChannel
-                << " h: " << c.mH
-                << " w: " << c.mW
-                << " eps: " << c.mEps
-                << " moving average: " << c.mMovingAverage
-                << " mean size: " << c.mMeanWeights.count
-                << " var size: " << c.mVarWeights.count
+                << " channel: " << c.mParam.mChannel
+                << " h: " << c.mParam.mH
+                << " w: " << c.mParam.mW
+                << " eps: " << c.mParam.mEps
+                << " moving average: " << c.mParam.mMovingAverage
                 << std::endl
         );
         // clang-format on
     }
 
    private:
-    float mEps;
-    float mMovingAverage;
-    int mChannel;
-    int mH;
-    int mW;
-    Weights mMeanWeights;
-    Weights mVarWeights;
+    BatchNormParam mParam;
+    float* mMeanWeights;
+    float* mVarWeights;
     std::string mNamespace;
 };
