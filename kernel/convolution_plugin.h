@@ -91,10 +91,11 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         mOutputScale =((float*)data)[15]; //int-float-4byte
         mDilationH = ((int*)data)[16];
         mDilationW = ((int*)data)[17];
+        mKernelScale = ((float*)data)[18];
         float* kernel = (float*)malloc(kc * 4);
         float* bias = (float*)malloc(bc * 4);
-        memcpy(kernel, ((int*)data) + 18, kc * 4);
-        memcpy(bias, ((int*)data) + 18 + kc, bc * 4);
+        memcpy(kernel, ((int*)data) + 19, kc * 4);
+        memcpy(bias, ((int*)data) + 19 + kc, bc * 4);
         mKernelWeights = Weights{
             .type = DataType::kFLOAT,
             .values = kernel,
@@ -105,6 +106,22 @@ class ConvolutionPlugin : public IPluginV2IOExt {
             .values = bias,
             .count = bc,
         };
+
+        mKernelWeights_I8 = (int8_t*)malloc(kc);
+        mBiasWeights_I8 = (int8_t*)malloc(bc);
+        memcpy(mKernelWeights_I8, ((int8_t*)data) + (19 + kc + bc) * sizeof(int), kc * sizeof(int8_t));
+        memcpy(mBiasWeights_I8, ((int8_t*)data) + (19 + kc + bc) * sizeof(int) + kc * sizeof(int8_t), bc * sizeof(int8_t));
+
+        /*mKernelWeights = Weights{
+            .type = DataType::kFLOAT,
+            .values = kernel,
+            .count = kc,
+        };
+        mBiasWeights = Weights{
+            .type = DataType::kFLOAT,
+            .values = bias,
+            .count = bc,
+        };*/
     }
 
    public:
@@ -213,7 +230,7 @@ class ConvolutionPlugin : public IPluginV2IOExt {
     }
 
     size_t getSerializationSize() const noexcept override {
-        return (18 + mKernelWeights.count + mBiasWeights.count) * 4;
+        return ((19 + mKernelWeights.count + mBiasWeights.count) * sizeof(int) + (mKernelWeights.count + mBiasWeights.count) * sizeof(int8_t));
     }
 
     void serialize(void* buffer) const noexcept override {
@@ -237,12 +254,21 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         ((float*)buffer)[15] = mOutputScale; //int-float-4byte
         ((int*)buffer)[16] = mDilationH;
         ((int*)buffer)[17] = mDilationW;
+        ((float*)buffer)[18] = mKernelScale; //int-float-4byte
+
         memcpy(
-            ((int*)buffer) + 18, mKernelWeights.values,
+            ((int*)buffer) + 19, mKernelWeights.values,
             mKernelWeights.count * 4);
         memcpy(
-            ((int*)buffer) + 18 + mKernelWeights.count, mBiasWeights.values,
+            ((int*)buffer) + 19 + mKernelWeights.count, mBiasWeights.values,
             mBiasWeights.count * 4);
+
+        memcpy(
+            ((int8_t*)buffer) + (19 + mKernelWeights.count + mBiasWeights.count) * sizeof(int), mKernelWeights_I8,
+            mKernelWeights.count * sizeof(int8_t));
+        memcpy(
+            ((int8_t*)buffer) + ((19 + mKernelWeights.count + mBiasWeights.count) * sizeof(int) + mKernelWeights.count * sizeof(int8_t)),
+            mBiasWeights_I8, mBiasWeights.count * sizeof(int8_t));
     }
 
 
