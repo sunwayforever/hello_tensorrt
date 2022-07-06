@@ -1683,7 +1683,7 @@ layer {
       label_map_file: "data/VOC0712/labelmap_voc.prototxt"
     }
     code_type: CENTER_SIZE
-    keep_top_k: 1
+    keep_top_k: 3
     confidence_threshold: 0.01
   }
 }

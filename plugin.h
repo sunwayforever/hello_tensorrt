@@ -7,6 +7,7 @@
 #include "kernel/eltwise_plugin.h"
 #include "kernel/inner_product_plugin.h"
 #include "kernel/lrn_plugin.h"
+#include "kernel/nms_plugin.h"
 #include "kernel/normalize_plugin.h"
 #include "kernel/permute_plugin.h"
 #include "kernel/pooling_plugin.h"
@@ -28,6 +29,7 @@
     ITEM(Scale, SCALE);                \
     ITEM(Softmax, SOFTMAX);            \
     ITEM(Permute, PERMUTE);            \
+    ITEM(NMS, NMS);                    \
     ITEM(Normalize2, NORMALIZE);       \
     ITEM(PriorBox2, PRIOR_BOX);
 

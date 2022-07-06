@@ -39,17 +39,7 @@ clean:
 	rm ${OBJ} ${APP} ${DEP} ${CUDA_OBJ}
 
 build-tensorrt:
-	pushd TensorRT
-	mkdir -p build && cd build
-	CUDACXX=/opt/anaconda3/envs/cuda-11/bin/nvcc cmake .. -DTRT_LIB_DIR=/opt/anaconda3/envs/cuda-11/lib -DTRT_OUT_DIR=`pwd`/out
-	make
-	popd
+	cd TensorRT; mkdir -p build && cd build; CUDACXX=/opt/anaconda3/envs/cuda-11/bin/nvcc cmake .. -DTRT_LIB_DIR=/opt/anaconda3/envs/cuda-11/lib -DTRT_OUT_DIR=`pwd`/out; make; cd ..
 
 get-tensorrt:
-	git clone https://github.com/NVIDIA/TensorRT/
-	pushd TensorRT
-	git submodule update --init --recursive
-	git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b
-	git submodule update
-	git apply ../tensorrt.diff
-	popd
+	git clone https://github.com/NVIDIA/TensorRT/; cd TensorRT; git submodule update --init --recursive; git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b; git submodule update; git apply ../tensorrt.diff; cd ..
