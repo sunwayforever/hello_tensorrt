@@ -90,26 +90,6 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         mDilationH = ((int*)data)[16];
         mDilationW = ((int*)data)[17];
         mKernelScale = ((float*)data)[18];
-        /*
-        float* kernel = (float*)malloc(kc * 4);
-        float* bias = (float*)malloc(bc * 4);
-        memcpy(kernel, ((int*)data) + 19, kc * 4);
-        memcpy(bias, ((int*)data) + 19 + kc, bc * 4);
-        mKernelWeights = Weights{
-            .type = DataType::kFLOAT,
-            .values = kernel,
-            .count = kc,
-        };
-        mBiasWeights = Weights{
-            .type = DataType::kFLOAT,
-            .values = bias,
-            .count = bc,
-        };
-
-        mKernelWeights_I8 = (int8_t*)malloc(kc);
-        mBiasWeights_I8 = (int8_t*)malloc(bc);
-        memcpy(mKernelWeights_I8, ((int8_t*)data) + (19 + kc + bc) * sizeof(int), kc * sizeof(int8_t));
-        memcpy(mBiasWeights_I8, ((int8_t*)data) + (19 + kc + bc) * sizeof(int) + kc * sizeof(int8_t), bc * sizeof(int8_t));*/
 
         if (mType == (int)DataType::kFLOAT){
             float* kernel = (float*)malloc(kc * 4);
@@ -127,14 +107,12 @@ class ConvolutionPlugin : public IPluginV2IOExt {
                 .count = bc,
             };
         }
-        else if (mType == (int)DataType::kINT8)
-        {
+        else if (mType == (int)DataType::kINT8){
             mKernelWeights_I8 = (int8_t*)malloc(kc);
             mBiasWeights_I8 = (int8_t*)malloc(bc);
             memcpy(mKernelWeights_I8, ((int8_t*)data) + 19 * sizeof(int), kc * sizeof(int8_t));
             memcpy(mBiasWeights_I8, ((int8_t*)data) + 19 * sizeof(int) + kc * sizeof(int8_t), bc * sizeof(int8_t));
         }
-
     }
 
    public:
@@ -187,12 +165,6 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         } else {
             int8_t* dst = reinterpret_cast<int8_t*>(outputs[0]);
             const int8_t* src = reinterpret_cast<const int8_t*>(inputs[0]);
-            /*ConvolutionInt8(
-                dst, src, mInputScale, mOutputScale, mInputChannel,
-                mOutputChannel, mGroup, mH, mW, mKernelH, mKernelW, mStrideH,
-                mStrideW, mPadH, mPadW, (float*)mKernelWeights.values,
-                mBiasWeights.count == 0 ? NULL : (float*)mBiasWeights.values,
-                stream);*/
             ConvolutionInt8(
                 dst, src, mInputScale, mOutputScale, mKernelScale,
                 mInputChannel, mOutputChannel, mGroup, mH, mW,
@@ -214,39 +186,38 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         mH = dims.d[1];
         mW = dims.d[2];
 
-        //
-        mBiasWeights_I8 = (int8_t*)malloc(sizeof(int8_t) * mOutputChannel);
-        mKernelWeights_I8 = (int8_t*)malloc(sizeof(int8_t)*(mInputChannel * mOutputChannel * mKernelH * mKernelW));
-        float kernel_max = ((float*)mKernelWeights.values)[0];
-        float kernel_min = ((float*)mKernelWeights.values)[0];
-        for(int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
-            if (((float*)mKernelWeights.values)[i] > kernel_max){
-                kernel_max = ((float*)mKernelWeights.values)[i];
+        if (mType == (int)DataType::kINT8) {
+            mBiasWeights_I8 = (int8_t*)malloc(sizeof(int8_t) * mOutputChannel);
+            mKernelWeights_I8 = (int8_t*)malloc(sizeof(int8_t)*(mInputChannel * mOutputChannel * mKernelH * mKernelW));
+            float kernel_max = ((float*)mKernelWeights.values)[0];
+            float kernel_min = ((float*)mKernelWeights.values)[0];
+            for(int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
+                if (((float*)mKernelWeights.values)[i] > kernel_max){
+                    kernel_max = ((float*)mKernelWeights.values)[i];
+                }
+                if (((float*)mKernelWeights.values)[i] < kernel_min){
+                    kernel_min = ((float*)mKernelWeights.values)[i];
+                }
             }
-            if (((float*)mKernelWeights.values)[i] < kernel_min){
-                kernel_min = ((float*)mKernelWeights.values)[i];
+
+            mKernelScale = (float)std::max(std::fabs(kernel_max),std::fabs(kernel_min))/127;
+
+            for (int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
+                mKernelWeights_I8[i] = (int8_t)(((float*)(mKernelWeights.values))[i]/mKernelScale); //Q
+            }
+
+            if (mBiasWeights.count != 0){
+                for (int i = 0; i < mOutputChannel; i++){
+                    mBiasWeights_I8[i] = (int8_t)(((float*)(mBiasWeights.values))[i]/(mKernelScale * mInputScale));//Q
+                }
             }
         }
-
-        mKernelScale = (float)std::max(std::fabs(kernel_max),std::fabs(kernel_min))/127;
-
-        for (int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
-            mKernelWeights_I8[i] = (int8_t)(((float*)(mKernelWeights.values))[i]/mKernelScale); //Q
-        }
-
-        if (mBiasWeights.count != 0){
-            for (int i = 0; i < mOutputChannel; i++){
-                mBiasWeights_I8[i] = (int8_t)(((float*)(mBiasWeights.values))[i]/(mKernelScale * mInputScale));//Q
-            }
-        }
-        //
     }
 
     size_t getSerializationSize() const noexcept override {
         if (mType == (int)DataType::kFLOAT){
             return ((19 + mKernelWeights.count + mBiasWeights.count) * sizeof(int));
-        }else if (mType == (int)DataType::kINT8)
-        {
+        }else if (mType == (int)DataType::kINT8){
             return (19 * sizeof(int) + (mKernelWeights.count + mBiasWeights.count) * sizeof(int8_t));
         }else{
             return 0;
