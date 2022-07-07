@@ -1,6 +1,7 @@
 // 2022-06-14 10:53
 #include <assert.h>
 
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <numeric>
@@ -9,19 +10,11 @@
 #include "NvCaffeParser.h"
 #include "NvInfer.h"
 #include "NvInferRuntime.h"
-#include <cmath>
+#include "convolution_param.h"
 
 extern void Convolution(
-    float* dst, const float* src, int input_channel, int output_channel,
-    int group, int h, int w, int kernel_h, int kernel_w, int stride_h,
-    int stride_w, int pad_h, int pad_w, int dilation_h, int dilation_w,
-    float* kernel, float* bias, void* workspace, cudaStream_t);
-
-extern void ConvolutionInt8(
-    int8_t* dst, const int8_t* src, float input_scale, float output_scale,float kernel_scale,
-    int input_channel, int output_channel, int group, int h, int w,
-    int kernel_h, int kernel_w, int stride_h, int stride_w, int padding_h,
-    int padding_w, int8_t* kernel, int8_t* bias, cudaStream_t stream);
+    void* dst, const void* src, ConvolutionParam param, void* kernel,
+    void* bias, void* workspace, cudaStream_t stream);
 
 using namespace nvinfer1;
 
@@ -31,88 +24,59 @@ class ConvolutionPlugin : public IPluginV2IOExt {
         for (int i = 0; i < fc.nbFields; i++) {
             auto field = fc.fields[i];
             if (std::string(field.name) == "num_output") {
-                this->mOutputChannel = *((int*)field.data);
+                mParam.mOutputChannel = *((int*)field.data);
             }
             if (std::string(field.name) == "group") {
-                this->mGroup = *((int*)field.data);
+                mParam.mGroup = *((int*)field.data);
             }
             if (std::string(field.name) == "kernel_weights") {
-                this->mKernelWeights = *(Weights*)field.data;
+                mKernelWeights =
+                    const_cast<void*>(((Weights*)field.data)->values);
+                mParam.mKernelWeightsSize = ((Weights*)field.data)->count;
             }
             if (std::string(field.name) == "bias_weights") {
-                this->mBiasWeights = *(Weights*)field.data;
+                mBiasWeights =
+                    const_cast<void*>(((Weights*)field.data)->values);
+                mParam.mBiasWeightsSize = ((Weights*)field.data)->count;
             }
             if (std::string(field.name) == "kernel_h") {
-                this->mKernelH = *((int*)field.data);
+                mParam.mKernelH = *((int*)field.data);
             }
             if (std::string(field.name) == "kernel_w") {
-                this->mKernelW = *((int*)field.data);
+                mParam.mKernelW = *((int*)field.data);
             }
             if (std::string(field.name) == "stride_h") {
-                this->mStrideH = *((int*)field.data);
+                mParam.mStrideH = *((int*)field.data);
             }
             if (std::string(field.name) == "stride_w") {
-                this->mStrideW = *((int*)field.data);
+                mParam.mStrideW = *((int*)field.data);
             }
             if (std::string(field.name) == "pad_h") {
-                this->mPadH = *((int*)field.data);
+                mParam.mPaddingH = *((int*)field.data);
             }
             if (std::string(field.name) == "pad_w") {
-                this->mPadW = *((int*)field.data);
+                mParam.mPaddingW = *((int*)field.data);
             }
             if (std::string(field.name) == "dilation_h") {
-                this->mDilationH = *((int*)field.data);
+                mParam.mDilationH = *((int*)field.data);
             }
             if (std::string(field.name) == "dilation_w") {
-                this->mDilationW = *((int*)field.data);
+                mParam.mDilationW = *((int*)field.data);
             }
         }
     }
 
     ConvolutionPlugin(const void* data, size_t length) {
-        mInputChannel = ((int*)data)[0];
-        mOutputChannel = ((int*)data)[1];
-        mGroup = ((int*)data)[2];
-        mH = ((int*)data)[3];
-        mW = ((int*)data)[4];
-        mKernelH = ((int*)data)[5];
-        mKernelW = ((int*)data)[6];
-        mStrideH = ((int*)data)[7];
-        mStrideW = ((int*)data)[8];
-        mPadH = ((int*)data)[9];
-        mPadW = ((int*)data)[10];
+        mParam = *(struct ConvolutionParam*)data;
 
-        int kc = ((int*)data)[11];
-        int bc = ((int*)data)[12];
-        mType = ((int*)data)[13];
-        mInputScale = ((float*)data)[14]; //int-float-4byte
-        mOutputScale =((float*)data)[15]; //int-float-4byte
-        mDilationH = ((int*)data)[16];
-        mDilationW = ((int*)data)[17];
-        mKernelScale = ((float*)data)[18];
-
-        if (mType == (int)DataType::kFLOAT){
-            float* kernel = (float*)malloc(kc * 4);
-            float* bias = (float*)malloc(bc * 4);
-            memcpy(kernel, ((int*)data) + 19, kc * 4);
-            memcpy(bias, ((int*)data) + 19 + kc, bc * 4);
-            mKernelWeights = Weights{
-                .type = DataType::kFLOAT,
-                .values = kernel,
-                .count = kc,
-            };
-            mBiasWeights = Weights{
-                .type = DataType::kFLOAT,
-                .values = bias,
-                .count = bc,
-            };
-        }
-        else if (mType == (int)DataType::kINT8){
-            mKernelWeights_I8 = (int8_t*)malloc(kc);
-            mBiasWeights_I8 = (int8_t*)malloc(bc);
-            memcpy(mKernelWeights_I8, ((int8_t*)data) + 19 * sizeof(int), kc * sizeof(int8_t));
-            memcpy(mBiasWeights_I8, ((int8_t*)data) + 19 * sizeof(int) + kc * sizeof(int8_t), bc * sizeof(int8_t));
-        }
+        int kc = mParam.mKernelWeightsSize;
+        int bc = mParam.mBiasWeightsSize;
+        int size = mParam.mType == (int)DataType::kFLOAT ? 4 : 1;
+        mKernelWeights = malloc(kc * size);
+        mBiasWeights = malloc(bc * size);
+        memcpy(mKernelWeights, (char*)data + sizeof(mParam), kc * size);
+        memcpy(
+            mBiasWeights, (char*)data + sizeof(mParam) + kc * size, bc * size);
     }
 
    public:
@@ -132,13 +96,19 @@ class ConvolutionPlugin : public IPluginV2IOExt {
 
         Dims3 outputDims;
         outputDims.nbDims = 3;
-        outputDims.d[0] = mOutputChannel;
+        outputDims.d[0] = mParam.mOutputChannel;
         // NOTE: `floor` for convolution
         outputDims.d[1] =
-            floor(h + 2 * mPadH - (mDilationH * (mKernelH - 1) + 1), mStrideH) +
+            floor(
+                h + 2 * mParam.mPaddingH -
+                    (mParam.mDilationH * (mParam.mKernelH - 1) + 1),
+                mParam.mStrideH) +
             1;
         outputDims.d[2] =
-            floor(w + 2 * mPadW - (mDilationW * (mKernelW - 1) + 1), mStrideW) +
+            floor(
+                w + 2 * mParam.mPaddingW -
+                    (mParam.mDilationW * (mParam.mKernelW - 1) + 1),
+                mParam.mStrideW) +
             1;
 
         return outputDims;
@@ -147,125 +117,91 @@ class ConvolutionPlugin : public IPluginV2IOExt {
     int initialize() noexcept override { return 0; }
     void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
-        return (mKernelWeights.count + mBiasWeights.count) * 4;
+        int size = mParam.mType == (int)DataType::kFLOAT ? 4 : 1;
+        return (mParam.mKernelWeightsSize + mParam.mBiasWeightsSize) * size;
     }
 
     int enqueue(
         int batchSize, const void* const* inputs, void* const* outputs,
         void* workspace, cudaStream_t stream) noexcept override {
-        if (mType == (int)DataType::kFLOAT) {
-            float* dst = reinterpret_cast<float*>(outputs[0]);
-            const float* src = reinterpret_cast<const float*>(inputs[0]);
-            Convolution(
-                dst, src, mInputChannel, mOutputChannel, mGroup, mH, mW,
-                mKernelH, mKernelW, mStrideH, mStrideW, mPadH, mPadW,
-                mDilationH, mDilationW, (float*)mKernelWeights.values,
-                mBiasWeights.count == 0 ? NULL : (float*)mBiasWeights.values,
-                workspace, stream);
-        } else {
-            int8_t* dst = reinterpret_cast<int8_t*>(outputs[0]);
-            const int8_t* src = reinterpret_cast<const int8_t*>(inputs[0]);
-            ConvolutionInt8(
-                dst, src, mInputScale, mOutputScale, mKernelScale,
-                mInputChannel, mOutputChannel, mGroup, mH, mW,
-                mKernelH, mKernelW, mStrideH, mStrideW, mPadH,
-                mPadW, mKernelWeights_I8, mBiasWeights.count == 0 ? NULL : mBiasWeights_I8, stream);
-        }
-
+        void* dst = outputs[0];
+        const void* src = inputs[0];
+        Convolution(
+            dst, src, mParam, mKernelWeights,
+            mParam.mBiasWeightsSize == 0 ? NULL : mBiasWeights, workspace,
+            stream);
         return 0;
     }
 
     void configurePlugin(
         const PluginTensorDesc* in, int nbInput, const PluginTensorDesc* out,
         int nbOutput) noexcept override {
-        mType = (int)in[0].type;
-        mInputScale = in[0].scale;
-        mOutputScale = out[0].scale;
+        mParam.mType = (int)in[0].type;
+        mParam.mInputScale = in[0].scale;
+        mParam.mOutputScale = out[0].scale;
         auto dims = in[0].dims;
-        mInputChannel = dims.d[0];
-        mH = dims.d[1];
-        mW = dims.d[2];
+        mParam.mInputChannel = dims.d[0];
+        mParam.mH = dims.d[1];
+        mParam.mW = dims.d[2];
 
-        if (mType == (int)DataType::kINT8) {
-            mBiasWeights_I8 = (int8_t*)malloc(sizeof(int8_t) * mOutputChannel);
-            mKernelWeights_I8 = (int8_t*)malloc(sizeof(int8_t)*(mInputChannel * mOutputChannel * mKernelH * mKernelW));
-            float kernel_max = ((float*)mKernelWeights.values)[0];
-            float kernel_min = ((float*)mKernelWeights.values)[0];
-            for(int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
-                if (((float*)mKernelWeights.values)[i] > kernel_max){
-                    kernel_max = ((float*)mKernelWeights.values)[i];
+        if (mParam.mType == (int)DataType::kINT8) {
+            int8_t* tmpBiasWeights = (int8_t*)malloc(mParam.mOutputChannel);
+            int8_t* tmpKernelWeights = (int8_t*)malloc(
+                (mParam.mInputChannel * mParam.mOutputChannel *
+                 mParam.mKernelH * mParam.mKernelW));
+            float kernel_max = ((float*)mKernelWeights)[0];
+            float kernel_min = ((float*)mKernelWeights)[0];
+            for (int i = 0; i < mParam.mKernelWeightsSize; i++) {
+                if (((float*)mKernelWeights)[i] > kernel_max) {
+                    kernel_max = ((float*)mKernelWeights)[i];
                 }
-                if (((float*)mKernelWeights.values)[i] < kernel_min){
-                    kernel_min = ((float*)mKernelWeights.values)[i];
-                }
-            }
-
-            mKernelScale = (float)std::max(std::fabs(kernel_max),std::fabs(kernel_min))/127;
-
-            for (int i=0; i<mInputChannel * mOutputChannel * mKernelH * mKernelW; i++){
-                mKernelWeights_I8[i] = (int8_t)(((float*)(mKernelWeights.values))[i]/mKernelScale); //Q
-            }
-
-            if (mBiasWeights.count != 0){
-                for (int i = 0; i < mOutputChannel; i++){
-                    mBiasWeights_I8[i] = (int8_t)(((float*)(mBiasWeights.values))[i]/(mKernelScale * mInputScale));//Q
+                if (((float*)mKernelWeights)[i] < kernel_min) {
+                    kernel_min = ((float*)mKernelWeights)[i];
                 }
             }
+
+            mParam.mKernelScale =
+                (float)std::max(std::fabs(kernel_max), std::fabs(kernel_min)) /
+                127;
+
+            for (int i = 0; i < mParam.mKernelWeightsSize; i++) {
+                tmpKernelWeights[i] =
+                    (int8_t)(((float*)mKernelWeights)[i] / mParam.mKernelScale);  // Q
+            }
+
+            if (mParam.mBiasWeightsSize != 0) {
+                for (int i = 0; i < mParam.mBiasWeightsSize; i++) {
+                    tmpBiasWeights[i] =
+                            (int8_t)(((float *)mBiasWeights)[i] / (mParam.mKernelScale * mParam.mInputScale));  // Q
+                }
+            }
+            mKernelWeights = tmpKernelWeights;
+            mBiasWeights = tmpBiasWeights;
         }
     }
 
     size_t getSerializationSize() const noexcept override {
-        if (mType == (int)DataType::kFLOAT){
-            return ((19 + mKernelWeights.count + mBiasWeights.count) * sizeof(int));
-        }else if (mType == (int)DataType::kINT8){
-            return (19 * sizeof(int) + (mKernelWeights.count + mBiasWeights.count) * sizeof(int8_t));
-        }else{
-            return 0;
-        }
+        int size = mParam.mType == (int)DataType::kFLOAT ? 4 : 1;
+        return sizeof(mParam) +
+               (mParam.mKernelWeightsSize + mParam.mBiasWeightsSize) * size;
     }
 
     void serialize(void* buffer) const noexcept override {
-        ((int*)buffer)[0] = mInputChannel;
-        ((int*)buffer)[1] = mOutputChannel;
-        ((int*)buffer)[2] = mGroup;
-        ((int*)buffer)[3] = mH;
-        ((int*)buffer)[4] = mW;
-        ((int*)buffer)[5] = mKernelH;
-        ((int*)buffer)[6] = mKernelW;
-        ((int*)buffer)[7] = mStrideH;
-        ((int*)buffer)[8] = mStrideW;
-        ((int*)buffer)[9] = mPadH;
-        ((int*)buffer)[10] = mPadW;
-        ((int*)buffer)[11] = mKernelWeights.count;
-        ((int*)buffer)[12] = mBiasWeights.count;
-        ((int*)buffer)[13] = mType;
-        ((float*)buffer)[14] = mInputScale; //int-float-4byte
-        ((float*)buffer)[15] = mOutputScale; //int-float-4byte
-        ((int*)buffer)[16] = mDilationH;
-        ((int*)buffer)[17] = mDilationW;
-        ((float*)buffer)[18] = mKernelScale; //int-float-4byte
-
-        if (mType == (int)DataType::kFLOAT){
-            memcpy(
-                ((int*)buffer) + 19, mKernelWeights.values,
-                mKernelWeights.count * 4);
-            memcpy(
-                ((int*)buffer) + 19 + mKernelWeights.count, mBiasWeights.values,
-                mBiasWeights.count * 4);
-        }else if (mType == (int)DataType::kINT8){
-            memcpy(
-                ((int8_t*)buffer) + 19 * sizeof(int), mKernelWeights_I8,
-                mKernelWeights.count * sizeof(int8_t));
-            memcpy(
-                ((int8_t*)buffer) + (19 * sizeof(int) + mKernelWeights.count * sizeof(int8_t)), mBiasWeights_I8,
-                mBiasWeights.count * sizeof(int8_t));
-        }
+        *(struct ConvolutionParam*)buffer = mParam;
+        int size = mParam.mType == (int)DataType::kFLOAT ? 4 : 1;
+        memcpy(
+            (char*)buffer + sizeof(mParam), mKernelWeights,
+            mParam.mKernelWeightsSize * size);
+        memcpy(
+            (char*)buffer + sizeof(mParam) + mParam.mKernelWeightsSize * size,
+            mBiasWeights, mParam.mBiasWeightsSize * size);
     }
 
     bool supportsFormatCombination(
         int pos, const PluginTensorDesc* inOut, int nbInputs,
         int nbOutputs) const noexcept override {
-        // std::cout << (int)inOut[pos].format << " " << (int)inOut[pos].type
+        // std::cout << (int)inOut[pos].format << " " <<
+        // (int)inOut[pos].type
         //           << " " << (int)inOut[0].type << std::endl;
         return inOut[pos].format == TensorFormat::kLINEAR &&
                (inOut[pos].type == DataType::kFLOAT ||
@@ -305,48 +241,26 @@ class ConvolutionPlugin : public IPluginV2IOExt {
 
     friend std::ostream& operator<<(
         std::ostream& os, const ConvolutionPlugin& c) {
-        // clang-format off
-        return (os
-                << " input channel: " << c.mInputChannel
-                << " output channel: " << c.mOutputChannel
-                << " group: " << c.mGroup
-                << " h: " << c.mH
-                << " w: " << c.mW
-                << " kernel: " << c.mKernelH << " " << c.mKernelW
-                << " stride: " << c.mStrideH << " " << c.mStrideW
-                << " pad: " << c.mPadH << " " << c.mPadW
-                << " type: " << c.mType << " scale: " << c.mInputScale << " " << c.mOutputScale
-                << " dilation: " << c.mDilationH << " " << c.mDilationW
-                << " kernel weights: " << c.mKernelWeights.count
-                << " bias weights: " << c.mBiasWeights.count
-                << std::endl
-        );
-        // clang-format on
+        return (
+            os << " input channel: " << c.mParam.mInputChannel
+               << " output channel: " << c.mParam.mOutputChannel
+               << " group: " << c.mParam.mGroup << " h: " << c.mParam.mH
+               << " w: " << c.mParam.mW << " kernel: " << c.mParam.mKernelH
+               << " " << c.mParam.mKernelW << " stride: " << c.mParam.mStrideH
+               << " " << c.mParam.mStrideW << " pad: " << c.mParam.mPaddingH
+               << " " << c.mParam.mPaddingW << " type: " << c.mParam.mType
+               << " scale: " << c.mParam.mInputScale << " "
+               << c.mParam.mOutputScale << " " << c.mParam.mKernelScale
+               << " dilation: " << c.mParam.mDilationH << " "
+               << c.mParam.mDilationW << " "
+               << " kernel size: " << c.mParam.mKernelWeightsSize << " "
+               << " bias size: " << c.mParam.mBiasWeightsSize << " "
+               << std::endl);
     }
 
    private:
-    int mOutputChannel;
-    int mInputChannel;
-    int mGroup;
-    int mH;
-    int mW;
-    Weights mKernelWeights;
-    Weights mBiasWeights;
-    int mKernelH;
-    int mKernelW;
-    int mStrideH;
-    int mStrideW;
-    int mPadH;
-    int mPadW;
-    int mType;
-    //int mInputScale;
-    //int mOutputScale;
-    float mInputScale;
-    float mOutputScale;
-    float mKernelScale;
-    int8_t* mKernelWeights_I8;
-    int8_t* mBiasWeights_I8;
-    int mDilationH;
-    int mDilationW;
+    ConvolutionParam mParam;
+    void* mKernelWeights;
+    void* mBiasWeights;
     std::string mNamespace;
 };

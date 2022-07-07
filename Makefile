@@ -36,7 +36,7 @@ ${TEST_APP}:test-%:%.elf
 test-all:${TEST_APP}
 
 clean:
-	rm ${OBJ} ${APP} ${DEP} ${CUDA_OBJ}
+	rm -rf ${OBJ} ${APP} ${DEP} ${CUDA_OBJ}
 
 build-tensorrt:
 	cd TensorRT; mkdir -p build && cd build; CUDACXX=/opt/anaconda3/envs/cuda-11/bin/nvcc cmake .. -DTRT_LIB_DIR=/opt/anaconda3/envs/cuda-11/lib -DTRT_OUT_DIR=`pwd`/out; make; cd ..

@@ -218,8 +218,7 @@ bool SampleMNIST::infer() {
         std::cout << ((float*)hostOutputBuffer)[i] << " ";
     }
     std::cout << std::endl;
-    for (int i = outputSize - 1; i >= std::max<int>(0, outputSize - 16);
-         i--) {
+    for (int i = outputSize - 1; i >= std::max<int>(0, outputSize - 16); i--) {
         std::cout << ((float*)hostOutputBuffer)[i] << " ";
     }
     std::cout << std::endl;
@@ -227,15 +226,14 @@ bool SampleMNIST::infer() {
 }
 
 int main(int argc, char** argv) {
-#ifdef INT8
-    REGISTER_TENSORRT_PLUGIN(ConvolutionPluginCreator);
-#else
     REGISTER_TENSORRT_PLUGIN(SoftmaxPluginCreator);
     REGISTER_TENSORRT_PLUGIN(PowerPluginCreator);
     REGISTER_TENSORRT_PLUGIN(ReluPluginCreator);
     REGISTER_TENSORRT_PLUGIN(PoolingPluginCreator);
-    REGISTER_TENSORRT_PLUGIN(InnerProductPluginCreator);
     REGISTER_TENSORRT_PLUGIN(ConvolutionPluginCreator);
+#ifndef INT8
+    // inner product plugin doesn't work yet
+    REGISTER_TENSORRT_PLUGIN(InnerProductPluginCreator);
 #endif
     SampleMNIST sample;
     sample.build();
