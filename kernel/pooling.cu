@@ -1,14 +1,25 @@
 #include <float.h>
 #include <stdio.h>
 
+#include "pooling_param.h"
+
 __global__ void Max(
-    int total_size, float* dst, const float* src, int h, int w, int kernel_h,
-    int kernel_w, int stride_h, int stride_w, int output_h, int output_w,
-    int padding_h, int padding_w) {
+    int total_size, float* dst, const float* src, int output_h, int output_w,
+    struct PoolingParam param) {
     int global_id = blockIdx.x * blockDim.x + threadIdx.x;
     if (global_id >= total_size) {
         return;
     }
+
+    int h = param.mH;
+    int w = param.mW;
+    int kernel_h = param.mKernelH;
+    int kernel_w = param.mKernelW;
+    int stride_h = param.mStrideH;
+    int stride_w = param.mStrideW;
+    int padding_h = param.mPaddingH;
+    int padding_w = param.mPaddingW;
+
     int channel = global_id / output_h / output_w;
     int output_x = global_id % (output_h * output_w) / output_w;
     int output_y = global_id % (output_h * output_w) % output_w;
@@ -34,14 +45,23 @@ __global__ void Max(
 }
 
 __global__ void Average(
-    int total_size, float* dst, const float* src, int h, int w, int kernel_h,
-    int kernel_w, int stride_h, int stride_w, int output_h, int output_w,
-    int padding_h, int padding_w) {
+    int total_size, float* dst, const float* src, int output_h, int output_w,
+    struct PoolingParam param) {
     int global_id = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (global_id >= total_size) {
         return;
     }
+
+    int h = param.mH;
+    int w = param.mW;
+    int kernel_h = param.mKernelH;
+    int kernel_w = param.mKernelW;
+    int stride_h = param.mStrideH;
+    int stride_w = param.mStrideW;
+    int padding_h = param.mPaddingH;
+    int padding_w = param.mPaddingW;
+
     int channel = global_id / output_h / output_w;
     int output_x = global_id % (output_h * output_w) / output_w;
     int output_y = global_id % (output_h * output_w) % output_w;
@@ -69,9 +89,19 @@ __global__ void Average(
 static int ceil(int a, int b) { return a / b + (a % b > 0); }
 
 void Pooling(
-    float* dst, const float* src, int channel, int h, int w, int method,
-    int kernel_h, int kernel_w, int stride_h, int stride_w, int padding_h,
-    int padding_w, cudaStream_t stream) {
+    float* dst, const float* src, struct PoolingParam param,
+    cudaStream_t stream) {
+    int channel = param.mChannel;
+    int h = param.mH;
+    int w = param.mW;
+    int method = param.mMethod;
+    int kernel_h = param.mKernelH;
+    int kernel_w = param.mKernelW;
+    int stride_h = param.mStrideH;
+    int stride_w = param.mStrideW;
+    int padding_h = param.mPaddingH;
+    int padding_w = param.mPaddingW;
+
     int output_h = ceil(h - kernel_h + 2 * padding_h, stride_h) + 1;
     // int padding_bottom = (output_h - 1) * stride_h + kernel_h - h;
     int output_w = ceil(w - kernel_w + 2 * padding_w, stride_w) + 1;
@@ -81,11 +111,9 @@ void Pooling(
 
     if (method == 0) {
         Max<<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
-            total_size, dst, src, h, w, kernel_h, kernel_w, stride_h, stride_w,
-            output_h, output_w, padding_h, padding_w);
+            total_size, dst, src, output_h, output_w, param);
     } else if (method == 1) {
         Average<<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
-            total_size, dst, src, h, w, kernel_h, kernel_w, stride_h, stride_w,
-            output_h, output_w, padding_h, padding_w);
+            total_size, dst, src, output_h, output_w, param);
     }
 }
