@@ -3,6 +3,7 @@
 #define PLUGIN_H
 
 #include "kernel/batch_norm_plugin.h"
+#include "kernel/bn_plugin.h"
 #include "kernel/convolution_plugin.h"
 #include "kernel/eltwise_plugin.h"
 #include "kernel/inner_product_plugin.h"
@@ -20,6 +21,7 @@
 #define PLUGIN_LIST(ITEM)              \
     ITEM(Eltwise, ELTWISE);            \
     ITEM(BatchNorm, BATCH_NORM);       \
+    ITEM(BN, BN);                      \
     ITEM(Convolution, CONVOLUTION);    \
     ITEM(InnerProduct, INNER_PRODUCT); \
     ITEM(LRN, LRN);                    \

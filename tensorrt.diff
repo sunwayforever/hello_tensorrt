@@ -1,8 +1,8 @@
 diff --git a/parsers/caffe/caffeParser/caffeParser.cpp b/parsers/caffe/caffeParser/caffeParser.cpp
-index 61d7dce..41b20e4 100644
+index 61d7dce..662300a 100644
 --- a/parsers/caffe/caffeParser/caffeParser.cpp
 +++ b/parsers/caffe/caffeParser/caffeParser.cpp
-@@ -309,6 +309,386 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
+@@ -309,6 +309,404 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
      return f;
  }
  
@@ -236,6 +236,24 @@ index 61d7dce..41b20e4 100644
 +    return f;
 +}
 +
++std::vector<nvinfer1::PluginField> CaffeParser::parseBNParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::BNParameter& p = msg.bn_param();
++
++    Weights meanWeights = weightFactory(msg.name(), WeightType::kMEAN);
++    Weights* mean = allocMemory<Weights>();
++    memcpy(mean, &meanWeights, sizeof(meanWeights));
++    f.emplace_back("scale_weights", mean, PluginFieldType::kUNKNOWN, 1);
++
++    Weights varWeights = weightFactory(msg.name(), WeightType::kVARIANCE);
++    Weights* var = allocMemory<Weights>();
++    memcpy(var, &varWeights, sizeof(varWeights));
++    f.emplace_back("shift_weights", var, PluginFieldType::kUNKNOWN, 1);
++
++    return f;
++}
++
 +std::vector<nvinfer1::PluginField> CaffeParser::parseScaleParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
 +{
 +    std::vector<nvinfer1::PluginField> f;
@@ -389,7 +407,7 @@ index 61d7dce..41b20e4 100644
  const IBlobNameToTensor* CaffeParser::parseBuffers(const uint8_t* deployBuffer,
                                                     std::size_t deployLength,
                                                     const uint8_t* modelBuffer,
-@@ -480,24 +860,85 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+@@ -480,24 +878,90 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                  std::vector<nvinfer1::PluginField> f;
                  if (layerMsg.type() == "Normalize")
                  {
@@ -477,15 +495,20 @@ index 61d7dce..41b20e4 100644
 +                    pluginName = "PERMUTE";
 +                    f = parsePermuteParam(layerMsg, weights, *mBlobNameToTensor);
 +                }
++                else if (layerMsg.type() == "BN")
++                {
++                    pluginName = "BN";
++                    f = parseBNParam(layerMsg, weights, *mBlobNameToTensor);
++                }
 +
  
                  if (mPluginRegistry.find(pluginName) != mPluginRegistry.end())
                  {
 diff --git a/parsers/caffe/caffeParser/caffeParser.h b/parsers/caffe/caffeParser/caffeParser.h
-index 5a24f63..627579d 100644
+index 5a24f63..4730983 100644
 --- a/parsers/caffe/caffeParser/caffeParser.h
 +++ b/parsers/caffe/caffeParser/caffeParser.h
-@@ -60,6 +60,19 @@ private:
+@@ -60,6 +60,20 @@ private:
      std::vector<nvinfer1::PluginField> parseDetectionOutputParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
      std::vector<nvinfer1::PluginField> parseLReLUParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
      std::vector<nvinfer1::PluginField> parseRPROIParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
@@ -502,6 +525,38 @@ index 5a24f63..627579d 100644
 +    std::vector<nvinfer1::PluginField> parseSoftmaxParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
 +    std::vector<nvinfer1::PluginField> parsePermuteParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
 +    std::vector<nvinfer1::PluginField> parseDetectionOutput2Param(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseBNParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);    
      template <typename T>
      T* allocMemory(int size = 1)
      {
+diff --git a/parsers/caffe/proto/trtcaffe.proto b/parsers/caffe/proto/trtcaffe.proto
+index 059f932..1726821 100644
+--- a/parsers/caffe/proto/trtcaffe.proto
++++ b/parsers/caffe/proto/trtcaffe.proto
+@@ -493,7 +493,8 @@ message LayerParameter {
+   optional ThresholdParameter threshold_param = 128;
+   optional TileParameter tile_param = 138;
+   optional WindowDataParameter window_data_param = 129;
+-
++  optional BNParameter bn_param = 190;
++  
+   // TRT PARAMETERS (Start with 878 because TRT is 878 on an old-style phone)
+   // These parameters are added to support custom branch of Caffe widely used
+   // by the community, such as SSD. This support relies on the fact that TRT
+@@ -674,6 +675,16 @@ message ClipParameter {
+   required float max = 2;
+ }
+ 
++message BNParameter {
++  enum BNMode {
++    LEARN = 0;
++    INFERENCE = 1;
++  }
++  optional BNMode bn_mode = 3 [default = LEARN];
++  optional FillerParameter scale_filler = 1;  // The filler for the scale
++  optional FillerParameter shift_filler = 2;  // The filler for the shift
++}
++
+ message ConcatParameter {
+   // The axis along which to concatenate -- may be negative to index from the
+   // end (e.g., -1 for the last axis).  Other axes must have the

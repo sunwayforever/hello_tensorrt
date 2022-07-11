@@ -28,7 +28,7 @@ class Logger : public nvinfer1::ILogger {
     }
 };
 
-static float DEFAULT_MEAN[3] = {104.0, 117.0, 123.0};
+static std::array<float, 3> DEFAULT_MEAN = {104.0, 117.0, 123.0};
 
 class ImageNet {
    protected:
@@ -41,7 +41,7 @@ class ImageNet {
    public:
     ImageNet(
         std::string proto, std::string caffemodel, std::string output,
-        float scale = 1.0, float mean[3] = DEFAULT_MEAN)
+        float scale = 1.0, std::array<float, 3> mean = DEFAULT_MEAN)
         : mProto(proto),
           mCaffemodel(caffemodel),
           mOutput(output),
@@ -136,7 +136,7 @@ class ImageNet {
         int HEIGHT = getHeight();
 
         cv::resize(
-            image, resized_image, cv::Size(WIDTH, HEIGHT), cv::INTER_LINEAR);
+            image, resized_image, cv::Size(WIDTH, HEIGHT));
         // NOTE: the caffe model is trained in BGR format
         for (int i = 0; i < WIDTH * HEIGHT; i++) {
             data[i] = ((float)resized_image.data[i * 3] - mMean[0]) * mScale;
