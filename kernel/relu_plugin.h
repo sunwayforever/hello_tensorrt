@@ -4,14 +4,13 @@
 #include <string>
 
 #include "NvCaffeParser.h"
-#include "NvInfer.h"
-#include "NvInferRuntime.h"
+#include "my_plugin.h"
 
 extern void Relu(float*, float*, int, cudaStream_t);
 
 using namespace nvinfer1;
 
-class ReluPlugin : public IPluginV2IOExt {
+class ReluPlugin : public MyPlugin {
    public:
     ReluPlugin(const PluginFieldCollection fc) {}
     ReluPlugin(const void* data, size_t length) {
@@ -60,36 +59,13 @@ class ReluPlugin : public IPluginV2IOExt {
                inOut[pos].format == inOut[0].format;
     }
 
-    DataType getOutputDataType(
-        int index, const DataType* inputTypes,
-        int nbInputs) const noexcept override {
-        (void)index;
-        return inputTypes[0];
-    }
-
     const char* getPluginType() const noexcept override { return "RELU"; }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    void destroy() noexcept override { delete this; }
+
     IPluginV2Ext* clone() const noexcept override {
         auto* plugin = new ReluPlugin(*this);
         return plugin;
     }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-    bool isOutputBroadcastAcrossBatch(
-        int outputIndex, const bool* inputIsBroadcasted,
-        int nbInputs) const noexcept override {
-        return false;
-    }
-    bool canBroadcastInputAcrossBatch(int inputIndex) const noexcept override {
-        return false;
-    }
 
    private:
     int mInputSize;
-    std::string mNamespace;
 };

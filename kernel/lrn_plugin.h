@@ -4,8 +4,7 @@
 #include <string>
 
 #include "NvCaffeParser.h"
-#include "NvInfer.h"
-#include "NvInferRuntime.h"
+#include "my_plugin.h"
 
 using namespace nvinfer1;
 
@@ -13,7 +12,7 @@ extern void LRN(
     float* dst, const float* src, int channel, int h, int w, int local_size,
     float alpha, float beta, cudaStream_t);
 
-class LRNPlugin : public IPluginV2IOExt {
+class LRNPlugin : public MyPlugin {
    public:
     LRNPlugin(const PluginFieldCollection fc) {
         for (int i = 0; i < fc.nbFields; i++) {
@@ -84,33 +83,12 @@ class LRNPlugin : public IPluginV2IOExt {
         return inOut[pos].format == TensorFormat::kLINEAR &&
                inOut[pos].type == DataType::kFLOAT;
     }
-    DataType getOutputDataType(
-        int index, const DataType* inputTypes,
-        int nbInputs) const noexcept override {
-        (void)index;
-        return inputTypes[0];
-    }
 
     const char* getPluginType() const noexcept override { return "LRN"; }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    void destroy() noexcept override { delete this; }
+
     IPluginV2Ext* clone() const noexcept override {
         auto* plugin = new LRNPlugin(*this);
         return plugin;
-    }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-    bool isOutputBroadcastAcrossBatch(
-        int outputIndex, const bool* inputIsBroadcasted,
-        int nbInputs) const noexcept override {
-        return false;
-    }
-    bool canBroadcastInputAcrossBatch(int inputIndex) const noexcept override {
-        return false;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const LRNPlugin& c) {
@@ -134,5 +112,4 @@ class LRNPlugin : public IPluginV2IOExt {
     int mLocalSize;
     float mAlpha;
     float mBeta;
-    std::string mNamespace;
 };

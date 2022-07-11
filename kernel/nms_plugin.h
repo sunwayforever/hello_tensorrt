@@ -5,8 +5,7 @@
 #include <string>
 
 #include "NvCaffeParser.h"
-#include "NvInfer.h"
-#include "NvInferRuntime.h"
+#include "my_plugin.h"
 #include "nms_param.h"
 
 extern void NMS(
@@ -16,7 +15,7 @@ extern void NMS(
 
 using namespace nvinfer1;
 
-class NMSPlugin : public IPluginV2IOExt {
+class NMSPlugin : public MyPlugin {
    public:
     NMSPlugin(const PluginFieldCollection fc) {
         for (int i = 0; i < fc.nbFields; i++) {
@@ -96,33 +95,11 @@ class NMSPlugin : public IPluginV2IOExt {
                inOut[pos].type == DataType::kFLOAT;
     }
 
-    DataType getOutputDataType(
-        int index, const DataType* inputTypes,
-        int nbInputs) const noexcept override {
-        (void)index;
-        return inputTypes[0];
-    }
-
     const char* getPluginType() const noexcept override { return "NMS"; }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    void destroy() noexcept override { delete this; }
+
     IPluginV2Ext* clone() const noexcept override {
         auto* plugin = new NMSPlugin(*this);
         return plugin;
-    }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-    bool isOutputBroadcastAcrossBatch(
-        int outputIndex, const bool* inputIsBroadcasted,
-        int nbInputs) const noexcept override {
-        return false;
-    }
-    bool canBroadcastInputAcrossBatch(int inputIndex) const noexcept override {
-        return false;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const NMSPlugin& c) {
@@ -138,5 +115,4 @@ class NMSPlugin : public IPluginV2IOExt {
 
    private:
     NMSParam mParam;
-    std::string mNamespace;
 };

@@ -8,8 +8,7 @@
 #include <vector>
 
 #include "NvCaffeParser.h"
-#include "NvInfer.h"
-#include "NvInferRuntime.h"
+#include "my_plugin.h"
 
 extern void PriorBox(
     float*, int h, int w, int image_h, int image_w, float offset, float step,
@@ -18,7 +17,7 @@ extern void PriorBox(
 
 using namespace nvinfer1;
 
-class PriorBox2Plugin : public IPluginV2IOExt {
+class PriorBox2Plugin : public MyPlugin {
    public:
     PriorBox2Plugin(const PluginFieldCollection fc) {
         for (int i = 0; i < fc.nbFields; i++) {
@@ -149,34 +148,14 @@ class PriorBox2Plugin : public IPluginV2IOExt {
         return inOut[pos].type == DataType::kFLOAT &&
                inOut[pos].format == inOut[0].format;
     }
-    DataType getOutputDataType(
-        int index, const DataType* inputTypes,
-        int nbInputs) const noexcept override {
-        (void)index;
-        return inputTypes[0];
-    }
 
     const char* getPluginType() const noexcept override { return "PRIOR_BOX"; }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    void destroy() noexcept override { delete this; }
+
     IPluginV2Ext* clone() const noexcept override {
         auto* plugin = new PriorBox2Plugin(*this);
         return plugin;
     }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-    bool isOutputBroadcastAcrossBatch(
-        int outputIndex, const bool* inputIsBroadcasted,
-        int nbInputs) const noexcept override {
-        return false;
-    }
-    bool canBroadcastInputAcrossBatch(int inputIndex) const noexcept override {
-        return false;
-    }
+
     friend std::ostream& operator<<(
         std::ostream& os, const PriorBox2Plugin& c) {
         os << " h: " << c.mH << " w: " << c.mW << " image_h: " << c.mImageH
@@ -213,5 +192,4 @@ class PriorBox2Plugin : public IPluginV2IOExt {
     std::vector<float> mMinSize;
     std::vector<float> mMaxSize;
     std::vector<float> mAspectRatio;
-    std::string mNamespace;
 };

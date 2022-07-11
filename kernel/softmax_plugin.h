@@ -4,14 +4,13 @@
 #include <string>
 
 #include "NvCaffeParser.h"
-#include "NvInfer.h"
-#include "NvInferRuntime.h"
+#include "my_plugin.h"
 
 extern void Softmax(float*, float*, int*, int, cudaStream_t);
 
 using namespace nvinfer1;
 
-class SoftmaxPlugin : public IPluginV2IOExt {
+class SoftmaxPlugin : public MyPlugin {
    public:
     SoftmaxPlugin(const PluginFieldCollection fc) {
         for (int i = 0; i < fc.nbFields; i++) {
@@ -79,33 +78,12 @@ class SoftmaxPlugin : public IPluginV2IOExt {
         return inOut[pos].type == DataType::kFLOAT &&
                inOut[pos].format == inOut[0].format;
     }
-    DataType getOutputDataType(
-        int index, const DataType* inputTypes,
-        int nbInputs) const noexcept override {
-        (void)index;
-        return inputTypes[0];
-    }
 
     const char* getPluginType() const noexcept override { return "SOFTMAX"; }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    void destroy() noexcept override { delete this; }
+
     IPluginV2Ext* clone() const noexcept override {
         auto* plugin = new SoftmaxPlugin(*this);
         return plugin;
-    }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-    bool isOutputBroadcastAcrossBatch(
-        int outputIndex, const bool* inputIsBroadcasted,
-        int nbInputs) const noexcept override {
-        return false;
-    }
-    bool canBroadcastInputAcrossBatch(int inputIndex) const noexcept override {
-        return false;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const SoftmaxPlugin& c) {
@@ -123,5 +101,4 @@ class SoftmaxPlugin : public IPluginV2IOExt {
     int mAxis;
     int mNewAxis;
     int mDims[3] = {1, 1, 1};
-    std::string mNamespace;
 };

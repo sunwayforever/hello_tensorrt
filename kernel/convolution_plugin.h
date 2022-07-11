@@ -8,9 +8,8 @@
 #include <string>
 
 #include "NvCaffeParser.h"
-#include "NvInfer.h"
-#include "NvInferRuntime.h"
 #include "convolution_param.h"
+#include "my_plugin.h"
 
 extern void Convolution(
     void* dst, const void* src, ConvolutionParam param, void* kernel,
@@ -18,7 +17,7 @@ extern void Convolution(
 
 using namespace nvinfer1;
 
-class ConvolutionPlugin : public IPluginV2IOExt {
+class ConvolutionPlugin : public MyPlugin {
    public:
     ConvolutionPlugin(const PluginFieldCollection fc) {
         for (int i = 0; i < fc.nbFields; i++) {
@@ -165,14 +164,15 @@ class ConvolutionPlugin : public IPluginV2IOExt {
                 127;
 
             for (int i = 0; i < mParam.mKernelWeightsSize; i++) {
-                tmpKernelWeights[i] =
-                    (int8_t)(((float*)mKernelWeights)[i] / mParam.mKernelScale);  // Q
+                tmpKernelWeights[i] = (int8_t)(
+                    ((float*)mKernelWeights)[i] / mParam.mKernelScale);  // Q
             }
 
             if (mParam.mBiasWeightsSize != 0) {
                 for (int i = 0; i < mParam.mBiasWeightsSize; i++) {
-                    tmpBiasWeights[i] =
-                            (int8_t)(((float *)mBiasWeights)[i] / (mParam.mKernelScale * mParam.mInputScale));  // Q
+                    tmpBiasWeights[i] = (int8_t)(
+                        ((float*)mBiasWeights)[i] /
+                        (mParam.mKernelScale * mParam.mInputScale));  // Q
                 }
             }
             mKernelWeights = tmpKernelWeights;
@@ -208,35 +208,14 @@ class ConvolutionPlugin : public IPluginV2IOExt {
                 inOut[pos].type == DataType::kINT8) &&
                inOut[pos].type == inOut[0].type;
     }
-    DataType getOutputDataType(
-        int index, const DataType* inputTypes,
-        int nbInputs) const noexcept override {
-        (void)index;
-        return inputTypes[0];
-    }
 
     const char* getPluginType() const noexcept override {
         return "CONVOLUTION";
     }
-    const char* getPluginVersion() const noexcept override { return "1"; }
-    void destroy() noexcept override { delete this; }
+
     IPluginV2Ext* clone() const noexcept override {
         auto* plugin = new ConvolutionPlugin(*this);
         return plugin;
-    }
-    void setPluginNamespace(const char* libNamespace) noexcept override {
-        mNamespace = libNamespace;
-    }
-    const char* getPluginNamespace() const noexcept override {
-        return mNamespace.c_str();
-    }
-    bool isOutputBroadcastAcrossBatch(
-        int outputIndex, const bool* inputIsBroadcasted,
-        int nbInputs) const noexcept override {
-        return false;
-    }
-    bool canBroadcastInputAcrossBatch(int inputIndex) const noexcept override {
-        return false;
     }
 
     friend std::ostream& operator<<(
@@ -262,5 +241,4 @@ class ConvolutionPlugin : public IPluginV2IOExt {
     ConvolutionParam mParam;
     void* mKernelWeights;
     void* mBiasWeights;
-    std::string mNamespace;
 };
