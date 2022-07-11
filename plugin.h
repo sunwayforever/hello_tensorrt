@@ -13,6 +13,7 @@
 #include "kernel/permute_plugin.h"
 #include "kernel/pooling_plugin.h"
 #include "kernel/power_plugin.h"
+#include "kernel/prelu_plugin.h"
 #include "kernel/prior_box_plugin.h"
 #include "kernel/relu_plugin.h"
 #include "kernel/scale_plugin.h"
@@ -28,6 +29,7 @@
     ITEM(Pooling, POOLING);            \
     ITEM(Power, POWER);                \
     ITEM(Relu, RELU);                  \
+    ITEM(PReLU, PRELU);                \
     ITEM(Scale, SCALE);                \
     ITEM(Softmax, SOFTMAX);            \
     ITEM(Permute, PERMUTE);            \

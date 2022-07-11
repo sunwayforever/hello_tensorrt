@@ -4,7 +4,7 @@
 int main(int argc, char** argv) {
     REGISTER_ALL_PLUGINS;
 
-    SegNet net("model/enet.prototxt", "model/enet.caffemodel", "bn0_1");
+    SegNet net("model/enet.prototxt", "model/enet.caffemodel", "prelu0_1");
 
     net.build();
     net.infer();

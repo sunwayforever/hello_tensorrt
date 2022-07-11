@@ -74,12 +74,12 @@ layer {
     bn_mode: INFERENCE
   }
 }
-# layer {
-#   name: "prelu0_1"
-#   type: "PReLU"
-#   bottom: "bn0_1"
-#   top: "prelu0_1"
-# }
+layer {
+  name: "prelu0_1"
+  type: "PReLU"
+  bottom: "bn0_1"
+  top: "prelu0_1"
+}
 # layer {
 #   name: "conv1_0_0"
 #   type: "Convolution"
