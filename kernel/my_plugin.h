@@ -9,6 +9,8 @@
 using namespace nvinfer1;
 class MyPlugin : public IPluginV2IOExt {
    public:
+    int initialize() noexcept override { return 0; }
+    void terminate() noexcept override {}
     const char* getPluginVersion() const noexcept override { return "1"; }
     void destroy() noexcept override { delete this; }
 

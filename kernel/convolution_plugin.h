@@ -113,8 +113,6 @@ class ConvolutionPlugin : public MyPlugin {
         return outputDims;
     }
 
-    int initialize() noexcept override { return 0; }
-    void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
         int size = mParam.mType == (int)DataType::kFLOAT ? 4 : 1;
         return (mParam.mKernelWeightsSize + mParam.mBiasWeightsSize) * size;

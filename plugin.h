@@ -18,6 +18,7 @@
 #include "kernel/relu_plugin.h"
 #include "kernel/scale_plugin.h"
 #include "kernel/softmax_plugin.h"
+#include "kernel/upsample_plugin.h"
 
 #define PLUGIN_LIST(ITEM)              \
     ITEM(Eltwise, ELTWISE);            \
@@ -35,7 +36,8 @@
     ITEM(Permute, PERMUTE);            \
     ITEM(NMS, NMS);                    \
     ITEM(Normalize2, NORMALIZE);       \
-    ITEM(PriorBox2, PRIOR_BOX);
+    ITEM(PriorBox2, PRIOR_BOX);        \
+    ITEM(Upsample, UPSAMPLE);
 
 #define REGISTER_PLUGIN(plugin_type, plugin_name) \
     REGISTER_TENSORRT_PLUGIN(plugin_type##PluginCreator);

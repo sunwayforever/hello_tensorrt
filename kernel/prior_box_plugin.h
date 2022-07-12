@@ -84,8 +84,6 @@ class PriorBox2Plugin : public MyPlugin {
         return Dims3(2, h * w * boxCount * 4, 1);
     }
 
-    int initialize() noexcept override { return 0; }
-    void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
         return 0;
     }

@@ -100,8 +100,6 @@ class PoolingPlugin : public MyPlugin {
         return outputDims;
     }
 
-    int initialize() noexcept override { return 0; }
-    void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
         return 0;
     }
@@ -112,7 +110,6 @@ class PoolingPlugin : public MyPlugin {
         float* dst = reinterpret_cast<float*>(outputs[0]);
         float* dst_mask = reinterpret_cast<float*>(outputs[1]);
         const float* src = reinterpret_cast<const float*>(inputs[0]);
-        std::cout << *this;
         Pooling(dst, dst_mask, src, mParam, stream);
         return 0;
     }

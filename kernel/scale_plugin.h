@@ -60,8 +60,6 @@ class ScalePlugin : public MyPlugin {
         return *inputs;
     }
 
-    int initialize() noexcept override { return 0; }
-    void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
         return 0;
     }

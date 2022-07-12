@@ -1,8 +1,16 @@
 diff --git a/parsers/caffe/caffeParser/caffeParser.cpp b/parsers/caffe/caffeParser/caffeParser.cpp
-index 61d7dce..92018e5 100644
+index 61d7dce..b011b06 100644
 --- a/parsers/caffe/caffeParser/caffeParser.cpp
 +++ b/parsers/caffe/caffeParser/caffeParser.cpp
-@@ -309,6 +309,428 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
+@@ -26,6 +26,7 @@
+ #include "google/protobuf/text_format.h"
+ #include "half.h"
+ #include "NvInferPluginUtils.h"
++#include "trtcaffe.pb.h"
+ 
+ using namespace nvinfer1;
+ using namespace nvcaffeparser1;
+@@ -309,6 +310,440 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
      return f;
  }
  
@@ -428,10 +436,22 @@ index 61d7dce..92018e5 100644
 +    return f;
 +}
 +
++std::vector<nvinfer1::PluginField> CaffeParser::parseUpsampleParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors)
++{
++    std::vector<nvinfer1::PluginField> f;
++    const trtcaffe::UpsampleParameter& p = msg.upsample_param();
++
++    int* scale = allocMemory<int>();
++    *scale = p.scale();
++    f.emplace_back("scale", scale, PluginFieldType::kINT32, 1);
++
++    return f;
++}
++
  const IBlobNameToTensor* CaffeParser::parseBuffers(const uint8_t* deployBuffer,
                                                     std::size_t deployLength,
                                                     const uint8_t* modelBuffer,
-@@ -478,26 +900,98 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+@@ -478,26 +913,102 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                  std::string pluginName;
                  nvinfer1::PluginFieldCollection fc;
                  std::vector<nvinfer1::PluginField> f;
@@ -532,15 +552,19 @@ index 61d7dce..92018e5 100644
 +                    pluginName = "PRELU";
 +                    f = parsePreLUParam(layerMsg, weights, *mBlobNameToTensor);
 +                }
-+
++                else if (layerMsg.type() == "Upsample")
++                {
++                    pluginName = "UPSAMPLE";
++                    f = parseUpsampleParam(layerMsg, weights, *mBlobNameToTensor);
++                }
  
                  if (mPluginRegistry.find(pluginName) != mPluginRegistry.end())
                  {
 diff --git a/parsers/caffe/caffeParser/caffeParser.h b/parsers/caffe/caffeParser/caffeParser.h
-index 5a24f63..b6882e6 100644
+index 5a24f63..22beb44 100644
 --- a/parsers/caffe/caffeParser/caffeParser.h
 +++ b/parsers/caffe/caffeParser/caffeParser.h
-@@ -60,6 +60,21 @@ private:
+@@ -60,6 +60,22 @@ private:
      std::vector<nvinfer1::PluginField> parseDetectionOutputParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
      std::vector<nvinfer1::PluginField> parseLReLUParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
      std::vector<nvinfer1::PluginField> parseRPROIParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
@@ -559,24 +583,26 @@ index 5a24f63..b6882e6 100644
 +    std::vector<nvinfer1::PluginField> parseDetectionOutput2Param(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
 +    std::vector<nvinfer1::PluginField> parseBNParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
 +    std::vector<nvinfer1::PluginField> parsePreLUParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
++    std::vector<nvinfer1::PluginField> parseUpsampleParam(const trtcaffe::LayerParameter& msg, CaffeWeightFactory& weightFactory, BlobNameToTensor& tensors);
      template <typename T>
      T* allocMemory(int size = 1)
      {
 diff --git a/parsers/caffe/proto/trtcaffe.proto b/parsers/caffe/proto/trtcaffe.proto
-index 059f932..1726821 100644
+index 059f932..29002d6 100644
 --- a/parsers/caffe/proto/trtcaffe.proto
 +++ b/parsers/caffe/proto/trtcaffe.proto
-@@ -493,7 +493,8 @@ message LayerParameter {
+@@ -493,7 +493,9 @@ message LayerParameter {
    optional ThresholdParameter threshold_param = 128;
    optional TileParameter tile_param = 138;
    optional WindowDataParameter window_data_param = 129;
 -
 +  optional BNParameter bn_param = 190;
++  optional UpsampleParameter upsample_param = 191;  
 +  
    // TRT PARAMETERS (Start with 878 because TRT is 878 on an old-style phone)
    // These parameters are added to support custom branch of Caffe widely used
    // by the community, such as SSD. This support relies on the fact that TRT
-@@ -674,6 +675,16 @@ message ClipParameter {
+@@ -674,6 +676,16 @@ message ClipParameter {
    required float max = 2;
  }
  
@@ -593,3 +619,11 @@ index 059f932..1726821 100644
  message ConcatParameter {
    // The axis along which to concatenate -- may be negative to index from the
    // end (e.g., -1 for the last axis).  Other axes must have the
+@@ -1817,3 +1829,7 @@ message PReLUParameter {
+   // Whether or not slope paramters are shared across channels.
+   optional bool channel_shared = 2 [default = false];
+ }
++
++message UpsampleParameter {
++  optional uint32 scale = 1 [default = 2];
++}

@@ -43,8 +43,6 @@ class PReLUPlugin : public MyPlugin {
         return *inputs;
     }
 
-    int initialize() noexcept override { return 0; }
-    void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
         return mParam.mSlopeWeightsCount * 4;
     }
@@ -54,7 +52,6 @@ class PReLUPlugin : public MyPlugin {
         void* workspace, cudaStream_t stream) noexcept override {
         float* dst = reinterpret_cast<float*>(outputs[0]);
         const float* src = reinterpret_cast<const float*>(inputs[0]);
-        std::cout << *this;
         PReLU(dst, src, mParam, mSlopeWeights, workspace, stream);
         return 0;
     }

@@ -50,8 +50,6 @@ class NMSPlugin : public MyPlugin {
         }
     }
 
-    int initialize() noexcept override { return 0; }
-    void terminate() noexcept override {}
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
         // for input_dims, input_mul and output_mul
         return 0;
