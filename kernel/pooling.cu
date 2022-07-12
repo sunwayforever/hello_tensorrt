@@ -4,8 +4,8 @@
 #include "pooling_param.h"
 
 __global__ void Max(
-    int total_size, float* dst, const float* src, int output_h, int output_w,
-    struct PoolingParam param) {
+    int total_size, float* dst, float* dst_mask, const float* src, int output_h,
+    int output_w, struct PoolingParam param) {
     int global_id = blockIdx.x * blockDim.x + threadIdx.x;
     if (global_id >= total_size) {
         return;
@@ -25,6 +25,7 @@ __global__ void Max(
     int output_y = global_id % (output_h * output_w) % output_w;
 
     float max_value = -FLT_MAX;
+    int max_index = 0;
     for (int i = 0; i < kernel_h; i++) {
         for (int j = 0; j < kernel_w; j++) {
             int orig_x = output_x * stride_h + i;
@@ -37,11 +38,20 @@ __global__ void Max(
                     src[channel * h * w + (orig_x - padding_h) * w + orig_y -
                         padding_w];
             }
-            max_value = max(max_value, curr_value);
+            if (curr_value > max_value) {
+                max_value = curr_value;
+                // NOTE: max_index 不包含 channel 对应的 offset
+                max_index = (orig_x - padding_h) * w + orig_y - padding_w;
+            }
         }
     }
     dst[channel * output_h * output_w + output_x * output_w + output_y] =
         max_value;
+    if (param.mNeedMask == 1) {
+        dst_mask
+            [channel * output_h * output_w + output_x * output_w + output_y] =
+                (float)max_index;
+    }
 }
 
 __global__ void Average(
@@ -89,7 +99,7 @@ __global__ void Average(
 static int ceil(int a, int b) { return a / b + (a % b > 0); }
 
 void Pooling(
-    float* dst, const float* src, struct PoolingParam param,
+    float* dst, float* dst_mask, const float* src, struct PoolingParam param,
     cudaStream_t stream) {
     int channel = param.mChannel;
     int h = param.mH;
@@ -111,7 +121,7 @@ void Pooling(
 
     if (method == 0) {
         Max<<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
-            total_size, dst, src, output_h, output_w, param);
+            total_size, dst, dst_mask, src, output_h, output_w, param);
     } else if (method == 1) {
         Average<<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
             total_size, dst, src, output_h, output_w, param);

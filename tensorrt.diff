@@ -1,8 +1,8 @@
 diff --git a/parsers/caffe/caffeParser/caffeParser.cpp b/parsers/caffe/caffeParser/caffeParser.cpp
-index 61d7dce..f884c02 100644
+index 61d7dce..92018e5 100644
 --- a/parsers/caffe/caffeParser/caffeParser.cpp
 +++ b/parsers/caffe/caffeParser/caffeParser.cpp
-@@ -309,6 +309,421 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
+@@ -309,6 +309,428 @@ std::vector<nvinfer1::PluginField> CaffeParser::parseRPROIParam(const trtcaffe::
      return f;
  }
  
@@ -62,6 +62,13 @@ index 61d7dce..f884c02 100644
 +    f.emplace_back("pad_h", pad_h, PluginFieldType::kINT32, 1);
 +    f.emplace_back("pad_w", pad_w, PluginFieldType::kINT32, 1);
 +
++    int *need_mask = allocMemory<int>();
++    if (msg.top_size() == 1) {
++        *need_mask = 0;
++    } else {
++        *need_mask = 1;
++    }
++    f.emplace_back("need_mask", need_mask, PluginFieldType::kINT32, 1);
 +    return f;
 +}
 +
@@ -424,7 +431,7 @@ index 61d7dce..f884c02 100644
  const IBlobNameToTensor* CaffeParser::parseBuffers(const uint8_t* deployBuffer,
                                                     std::size_t deployLength,
                                                     const uint8_t* modelBuffer,
-@@ -478,26 +893,98 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+@@ -478,26 +900,98 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                  std::string pluginName;
                  nvinfer1::PluginFieldCollection fc;
                  std::vector<nvinfer1::PluginField> f;

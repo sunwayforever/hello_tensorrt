@@ -80,84 +80,84 @@ layer {
   bottom: "bn0_1"
   top: "prelu0_1"
 }
-# layer {
-#   name: "conv1_0_0"
-#   type: "Convolution"
-#   bottom: "prelu0_1"
-#   top: "conv1_0_0"
-#   convolution_param {
-#     num_output: 16
-#     bias_term: true
-#     kernel_size: 2
-#     stride: 2
-#     weight_filler {
-#       type: "msra"
-#     }
-#     bias_filler {
-#       type: "constant"
-#       value: 0.0
-#     }
-#   }
-# }
-# layer {
-#   name: "prelu1_0_0"
-#   type: "PReLU"
-#   bottom: "conv1_0_0"
-#   top: "prelu1_0_0"
-# }
-# layer {
-#   name: "conv1_0_1"
-#   type: "Convolution"
-#   bottom: "prelu1_0_0"
-#   top: "conv1_0_1"
-#   convolution_param {
-#     num_output: 16
-#     bias_term: true
-#     pad: 1
-#     kernel_size: 3
-#     stride: 1
-#     weight_filler {
-#       type: "msra"
-#     }
-#   }
-# }
-# layer {
-#   name: "prelu1_0_1"
-#   type: "PReLU"
-#   bottom: "conv1_0_1"
-#   top: "prelu1_0_1"
-# }
-# layer {
-#   name: "conv1_0_2"
-#   type: "Convolution"
-#   bottom: "prelu1_0_1"
-#   top: "conv1_0_2"
-#   convolution_param {
-#     num_output: 64
-#     bias_term: true
-#     kernel_size: 1
-#     stride: 1
-#     weight_filler {
-#       type: "msra"
-#     }
-#     bias_filler {
-#       type: "constant"
-#       value: 0.0
-#     }
-#   }
-# }
-# layer {
-#   name: "pool1_0_4"
-#   type: "Pooling"
-#   bottom: "prelu0_1"
-#   top: "pool1_0_4"
-#   top: "pool1_0_4_mask"
-#   pooling_param {
-#     pool: MAX
-#     kernel_size: 2
-#     stride: 2
-#   }
-# }
+layer {
+  name: "conv1_0_0"
+  type: "Convolution"
+  bottom: "prelu0_1"
+  top: "conv1_0_0"
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    kernel_size: 2
+    stride: 2
+    weight_filler {
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "prelu1_0_0"
+  type: "PReLU"
+  bottom: "conv1_0_0"
+  top: "prelu1_0_0"
+}
+layer {
+  name: "conv1_0_1"
+  type: "Convolution"
+  bottom: "prelu1_0_0"
+  top: "conv1_0_1"
+  convolution_param {
+    num_output: 16
+    bias_term: true
+    pad: 1
+    kernel_size: 3
+    stride: 1
+    weight_filler {
+      type: "msra"
+    }
+  }
+}
+layer {
+  name: "prelu1_0_1"
+  type: "PReLU"
+  bottom: "conv1_0_1"
+  top: "prelu1_0_1"
+}
+layer {
+  name: "conv1_0_2"
+  type: "Convolution"
+  bottom: "prelu1_0_1"
+  top: "conv1_0_2"
+  convolution_param {
+    num_output: 64
+    bias_term: true
+    kernel_size: 1
+    stride: 1
+    weight_filler {
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0.0
+    }
+  }
+}
+layer {
+  name: "pool1_0_4"
+  type: "Pooling"
+  bottom: "prelu0_1"
+  top: "pool1_0_4"
+  top: "pool1_0_4_mask"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
 # layer {
 #   name: "conv1_0_4"
 #   type: "Convolution"

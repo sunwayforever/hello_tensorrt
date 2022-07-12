@@ -11,7 +11,7 @@
 #include "pooling_param.h"
 
 extern void Pooling(
-    float* dst, const float* src, struct PoolingParam param,
+    float* dst, float* dst_mask, const float* src, struct PoolingParam param,
     cudaStream_t stream);
 
 using namespace nvinfer1;
@@ -47,6 +47,9 @@ class PoolingPlugin : public MyPlugin {
             if (std::string(field.name) == "global_pooling") {
                 this->mParam.mGlobalPooling = *((int*)field.data);
             }
+            if (std::string(field.name) == "need_mask") {
+                this->mParam.mNeedMask = *((int*)field.data);
+            }
         }
     }
 
@@ -55,7 +58,13 @@ class PoolingPlugin : public MyPlugin {
     }
 
    public:
-    int getNbOutputs() const noexcept override { return 1; }
+    int getNbOutputs() const noexcept override {
+        if (mParam.mNeedMask == 0) {
+            return 1;
+        } else {
+            return 2;
+        }
+    }
 
     // NOTE: NCHW format
     static int ceil(int a, int b) {
@@ -101,9 +110,10 @@ class PoolingPlugin : public MyPlugin {
         int batchSize, const void* const* inputs, void* const* outputs,
         void* workspace, cudaStream_t stream) noexcept override {
         float* dst = reinterpret_cast<float*>(outputs[0]);
+        float* dst_mask = reinterpret_cast<float*>(outputs[1]);
         const float* src = reinterpret_cast<const float*>(inputs[0]);
         std::cout << *this;
-        Pooling(dst, src, mParam, stream);
+        Pooling(dst, dst_mask, src, mParam, stream);
         return 0;
     }
 
