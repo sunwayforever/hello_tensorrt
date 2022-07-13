@@ -1,4 +1,7 @@
 // 2022-06-14 10:53
+#ifndef CONVOLUTION_PLUGIN_H
+#define CONVOLUTION_PLUGIN_H
+
 #include <assert.h>
 
 #include <cmath>
@@ -235,8 +238,10 @@ class ConvolutionPlugin : public MyPlugin {
                << std::endl);
     }
 
-   private:
+   protected:
     ConvolutionParam mParam;
+
     void* mKernelWeights;
     void* mBiasWeights;
 };
+#endif

@@ -59,7 +59,6 @@ __global__ void ConvKernel(
                     kernel_value = kernel
                         [channel * input_channel * kernel_h * kernel_w +
                          k * kernel_h * kernel_w + i * kernel_w + j];
-
                     sum += src_value * kernel_value;
                 }
             }
@@ -88,9 +87,8 @@ __global__ void ConvKernel(
         }
     }
     if (!IS_FLOAT) {
-        sum =
-            (T)(sum * param.mInputScale * param.mKernelScale /
-                param.mOutputScale);
+        sum = (T)(
+            sum * param.mInputScale * param.mKernelScale / param.mOutputScale);
     }
     dst[channel * output_h * output_w + output_x * output_w + output_y] = sum;
 }

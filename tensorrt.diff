@@ -1,5 +1,5 @@
 diff --git a/parsers/caffe/caffeParser/caffeParser.cpp b/parsers/caffe/caffeParser/caffeParser.cpp
-index 61d7dce..b011b06 100644
+index 61d7dce..45068b9 100644
 --- a/parsers/caffe/caffeParser/caffeParser.cpp
 +++ b/parsers/caffe/caffeParser/caffeParser.cpp
 @@ -26,6 +26,7 @@
@@ -451,7 +451,7 @@ index 61d7dce..b011b06 100644
  const IBlobNameToTensor* CaffeParser::parseBuffers(const uint8_t* deployBuffer,
                                                     std::size_t deployLength,
                                                     const uint8_t* modelBuffer,
-@@ -478,26 +913,102 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
+@@ -478,26 +913,107 @@ const IBlobNameToTensor* CaffeParser::parse(INetworkDefinition& network,
                  std::string pluginName;
                  nvinfer1::PluginFieldCollection fc;
                  std::vector<nvinfer1::PluginField> f;
@@ -556,6 +556,11 @@ index 61d7dce..b011b06 100644
 +                {
 +                    pluginName = "UPSAMPLE";
 +                    f = parseUpsampleParam(layerMsg, weights, *mBlobNameToTensor);
++                }
++                else if (layerMsg.type() == "Deconvolution")
++                {
++                    pluginName = "DECONVOLUTION";
++                    f = parseConvolutionParam(layerMsg, weights, *mBlobNameToTensor);
 +                }
  
                  if (mPluginRegistry.find(pluginName) != mPluginRegistry.end())

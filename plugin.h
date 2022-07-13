@@ -5,6 +5,7 @@
 #include "kernel/batch_norm_plugin.h"
 #include "kernel/bn_plugin.h"
 #include "kernel/convolution_plugin.h"
+#include "kernel/deconvolution_plugin.h"
 #include "kernel/eltwise_plugin.h"
 #include "kernel/inner_product_plugin.h"
 #include "kernel/lrn_plugin.h"
@@ -20,23 +21,24 @@
 #include "kernel/softmax_plugin.h"
 #include "kernel/upsample_plugin.h"
 
-#define PLUGIN_LIST(ITEM)              \
-    ITEM(Eltwise, ELTWISE);            \
-    ITEM(BatchNorm, BATCH_NORM);       \
-    ITEM(BN, BN);                      \
-    ITEM(Convolution, CONVOLUTION);    \
-    ITEM(InnerProduct, INNER_PRODUCT); \
-    ITEM(LRN, LRN);                    \
-    ITEM(Pooling, POOLING);            \
-    ITEM(Power, POWER);                \
-    ITEM(Relu, RELU);                  \
-    ITEM(PReLU, PRELU);                \
-    ITEM(Scale, SCALE);                \
-    ITEM(Softmax, SOFTMAX);            \
-    ITEM(Permute, PERMUTE);            \
-    ITEM(NMS, NMS);                    \
-    ITEM(Normalize2, NORMALIZE);       \
-    ITEM(PriorBox2, PRIOR_BOX);        \
+#define PLUGIN_LIST(ITEM)               \
+    ITEM(Eltwise, ELTWISE);             \
+    ITEM(BatchNorm, BATCH_NORM);        \
+    ITEM(BN, BN);                       \
+    ITEM(Convolution, CONVOLUTION);     \
+    ITEM(Deconvolution, DECONVOLUTION); \
+    ITEM(InnerProduct, INNER_PRODUCT);  \
+    ITEM(LRN, LRN);                     \
+    ITEM(Pooling, POOLING);             \
+    ITEM(Power, POWER);                 \
+    ITEM(Relu, RELU);                   \
+    ITEM(PReLU, PRELU);                 \
+    ITEM(Scale, SCALE);                 \
+    ITEM(Softmax, SOFTMAX);             \
+    ITEM(Permute, PERMUTE);             \
+    ITEM(NMS, NMS);                     \
+    ITEM(Normalize2, NORMALIZE);        \
+    ITEM(PriorBox2, PRIOR_BOX);         \
     ITEM(Upsample, UPSAMPLE);
 
 #define REGISTER_PLUGIN(plugin_type, plugin_name) \

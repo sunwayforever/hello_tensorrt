@@ -49,7 +49,6 @@ class UpsamplePlugin : public MyPlugin {
         float* dst = reinterpret_cast<float*>(outputs[0]);
         const float* src = reinterpret_cast<const float*>(inputs[0]);
         const float* mask = reinterpret_cast<const float*>(inputs[1]);
-        std::cout << *this;
         Upsample(dst, src, mask, mParam, workspace, stream);
         return 0;
     }
