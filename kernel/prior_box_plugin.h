@@ -143,8 +143,8 @@ class PriorBox2Plugin : public MyPlugin {
     bool supportsFormatCombination(
         int pos, const PluginTensorDesc* inOut, int nbInputs,
         int nbOutputs) const noexcept override {
-        return inOut[pos].type == DataType::kFLOAT &&
-               inOut[pos].format == inOut[0].format;
+        return inOut[pos].format == TensorFormat::kLINEAR &&
+               inOut[pos].type == DataType::kFLOAT;
     }
 
     const char* getPluginType() const noexcept override { return "PRIOR_BOX"; }
