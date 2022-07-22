@@ -1,5 +1,6 @@
-CPPFLAGS := -I /opt/anaconda3/envs/cuda-11/include/ -I/usr/include/opencv4
-# CPPFLAGS += -DINT8
+CPPFLAGS := -I /opt/anaconda3/envs/cuda-11/include/ -I/usr/include/opencv4 -I${PWD}/TensorRT/samples/common
+#CPPFLAGS += -DINT8
+#USE_MNIST_CALIBRATOR=1
 CXXFLAGS := -g -O0 -MMD -Wno-deprecated-declarations
 LDFLAGS := -L/opt/anaconda3/envs/cuda-11/lib -L/opt/anaconda3/envs/cuda-11/lib64 -L${PWD}/TensorRT/build/out
 LDLIBS := -lnvcaffeparser -lnvinfer -lnvinfer_plugin -lcudnn -lcudart -lstdc++ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
@@ -19,12 +20,17 @@ DEP := $(OBJ:.o=.d)
 CUDA_KERNEL_SRC:=$(wildcard kernel/*.cu)
 CUDA_OBJ := $(patsubst %.cu,%.o,${CUDA_KERNEL_SRC})
 
+ifeq (${USE_MNIST_CALIBRATOR}, 1)
+        EXTRA_OBJ := ${PWD}/TensorRT/build/samples/sampleINT8/CMakeFiles/sample_int8.dir/__/common/logger.cpp.o
+        CPPFLAGS += -DUSE_MNIST_CALIBRATOR
+endif
+
 %.o:%.cu
 	${NVCC} -c $^ -o $@
 
 .PRECIOUS: ${CUDA_OBJ} ${OBJ}
 
-%.elf:%.o ${CUDA_OBJ}
+%.elf:%.o ${CUDA_OBJ} ${EXTRA_OBJ}
 	gcc $^ ${LDFLAGS} ${LDLIBS} -o $@
 
 ${RUN_APP}:run-%:%.elf
