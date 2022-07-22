@@ -51,4 +51,4 @@ get-tensorrt:
 	git clone https://github.com/NVIDIA/TensorRT/; cd TensorRT; git submodule update --init --recursive; git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b; git submodule update; git apply ../tensorrt.diff; cd ..
 
 get-mnist-dataset:
-	cd mnist_calibration_data; wget http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz; wget http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz; gunzip train-images-idx3-ubyte.gz; gunzip train-labels-idx1-ubyte.gz; cd ..
+	mkdir mnist_calibration_data; cd mnist_calibration_data; wget http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz; wget http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz; gunzip train-images-idx3-ubyte.gz; gunzip train-labels-idx1-ubyte.gz; cd ..
