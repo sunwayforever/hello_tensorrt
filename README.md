@@ -41,3 +41,10 @@ make run-resnet
 1.  turn on `CPPFLAGS += -DINT8` in Makefile
 2.  make clean
 3.  make run-mnist
+
+# run with int8 and calibrator
+1.  make get-mnist-dataset (only run once)
+2.  turn on `CPPFLAGS += -DINT8` and `USE_MNIST_CALIBRATOR=1` in Makefile
+3.  make clean
+4.  make run-mnist
+

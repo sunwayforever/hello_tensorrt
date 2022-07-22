@@ -12,6 +12,8 @@
 #include "NvInfer.h"
 #include "NvInferPlugin.h"
 #include "plugin.h"
+#include "BatchStream.h"
+#include "EntropyCalibrator.h"
 
 using namespace nvinfer1;
 
@@ -61,6 +63,15 @@ bool SampleMNIST::build() {
 #ifdef INT8
     config->setFlag(BuilderFlag::kINT8);
     config->setFlag(BuilderFlag::kOBEY_PRECISION_CONSTRAINTS);
+#ifdef USE_MNIST_CALIBRATOR
+    std::unique_ptr<IInt8Calibrator> calibrator;
+    std::vector<std::string> directories{"./mnist_calibration_data/"};
+    MNISTBatchStream calibrationStream(10, 50, "train-images-idx3-ubyte",
+        "train-labels-idx1-ubyte", directories);
+    calibrator.reset(new Int8EntropyCalibrator2<MNISTBatchStream>(
+        calibrationStream, 0, "mnist", "data"));
+    config->setInt8Calibrator(calibrator.get());
+#endif
 #endif
 
     std::unique_ptr<IHostMemory> plan{
@@ -143,8 +154,8 @@ bool SampleMNIST::constructNetwork(
     }
     network->getLayer(0)->setInput(0, *meanSub->getOutput(0));
 #ifdef INT8
+#ifndef USE_MNIST_CALIBRATOR
     setAllDynamicRanges(network.get(), 127.0f, 127.0f);
-
     // int8 for conv
     for (int i = 0; i < network->getNbLayers(); i++) {
         auto layer = network->getLayer(i);
@@ -152,6 +163,7 @@ bool SampleMNIST::constructNetwork(
             layer->setPrecision(DataType::kINT8);
         }
     }
+#endif
 #endif
     return true;
 }
