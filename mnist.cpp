@@ -159,6 +159,7 @@ bool SampleMNIST::constructNetwork(
 #ifdef INT8
 #ifndef USE_MNIST_CALIBRATOR
     setAllDynamicRanges(network.get(), 127.0f, 127.0f);
+
     // int8 for conv
     for (int i = 0; i < network->getNbLayers(); i++) {
         auto layer = network->getLayer(i);
