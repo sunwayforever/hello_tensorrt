@@ -22,6 +22,11 @@ struct ConvolutionParam {
     int mDilationW;
     int mKernelWeightsSize;
     int mBiasWeightsSize;
+    // for deconv
+    int mOrigH;
+    int mOrigW;
+    int mOrigStrideH;
+    int mOrigStrideW;
 };
 
 #endif  // CONVOLUTION_PARAM_H

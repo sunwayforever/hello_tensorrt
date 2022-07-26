@@ -4,6 +4,7 @@
 
 #include <assert.h>
 
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -107,6 +108,17 @@ class DeconvolutionPlugin : public ConvolutionPlugin {
             }
         }
         mKernelWeights = kernelWeights;
+
+        mParam.mOrigH = mParam.mH;
+        mParam.mOrigW = mParam.mW;
+        mParam.mOrigStrideH = mParam.mStrideH;
+        mParam.mOrigStrideW = mParam.mStrideW;
+
+        mParam.mH = (mParam.mH - 1) * mParam.mStrideH + 1;
+        mParam.mW = (mParam.mW - 1) * mParam.mStrideW + 1;
+
+        mParam.mStrideH = 1;
+        mParam.mStrideW = 1;
     }
 
     int enqueue(
@@ -122,17 +134,9 @@ class DeconvolutionPlugin : public ConvolutionPlugin {
         float* input =
             InflateDeconvolutionInput((const float*)inputs[0], mParam, stream);
 
-        mParam.mH = (mParam.mH - 1) * mParam.mStrideH + 1;
-        mParam.mW = (mParam.mW - 1) * mParam.mStrideW + 1;
-
-        mParam.mStrideH = 1;
-        mParam.mStrideW = 1;
-
-        void** tmp;
-        *tmp = input;
-        std::cout << *this;
         return ConvolutionPlugin::enqueue(
-            batchSize, tmp, outputs, workspace, stream);
+            batchSize, std::array<void*, 1>{input}.data(), outputs, workspace,
+            stream);
     }
 
    private:

@@ -11,16 +11,16 @@ __global__ void Copy(
         return;
     }
 
-    int input_h = param.mH;
-    int input_w = param.mW;
+    int input_h = param.mOrigH;
+    int input_w = param.mOrigW;
     int channel = global_id / input_h / input_w;
     int x = global_id % (input_h * input_w) / input_w;
     int y = global_id % (input_h * input_w) % input_w;
 
-    int output_h = (param.mH - 1) * param.mStrideH + 1;
-    int output_w = (param.mW - 1) * param.mStrideW + 1;
-    int output_x = x * param.mStrideH;
-    int output_y = y * param.mStrideW;
+    int output_h = (param.mOrigH - 1) * param.mOrigStrideH + 1;
+    int output_w = (param.mOrigW - 1) * param.mOrigStrideW + 1;
+    int output_x = x * param.mOrigStrideH;
+    int output_y = y * param.mOrigStrideW;
 
     dst[channel * output_h * output_w + output_x * output_w + output_y] =
         src[global_id];
@@ -30,10 +30,10 @@ float* InflateDeconvolutionInput(
     const float* src, struct ConvolutionParam param, cudaStream_t stream) {
     float* dst;
 
-    int total_size = param.mInputChannel * param.mH * param.mW;
+    int total_size = param.mInputChannel * param.mOrigH * param.mOrigW;
 
-    int output_h = (param.mH - 1) * param.mStrideH + 1;
-    int output_w = (param.mW - 1) * param.mStrideW + 1;
+    int output_h = (param.mOrigH - 1) * param.mOrigStrideH + 1;
+    int output_w = (param.mOrigW - 1) * param.mOrigStrideW + 1;
 
     cudaMallocManaged(&dst, param.mInputChannel * output_h * output_w * 4);
     cudaMemset(dst, 0, param.mInputChannel * output_h * output_w * 4);
