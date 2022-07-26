@@ -10,6 +10,7 @@ OBJ := $(patsubst %.cpp,%.o,${SRC})
 APP := $(patsubst %.cpp,%.elf,${SRC})
 RUN_APP := $(patsubst %.cpp,run-%,${SRC})
 TEST_APP := $(patsubst %.cpp,test-%,${SRC})
+PROFILE_APP := $(patsubst %.cpp,profile-%,${SRC})
 
 all: ${APP}
 
@@ -32,6 +33,11 @@ ${RUN_APP}:run-%:%.elf
 
 ${TEST_APP}:test-%:%.elf
 	@LD_LIBRARY_PATH="${PWD}/TensorRT/build/out:/opt/anaconda3/envs/cuda-11/lib64:/opt/anaconda3/envs/cuda-11/lib"  python3 ./run-test.py $<
+
+${PROFILE_APP}:profile-%:%.elf
+	@rm -rf /tmp/profile*; \
+	LD_LIBRARY_PATH="${PWD}/TensorRT/build/out:/opt/anaconda3/envs/cuda-11/lib64:/opt/anaconda3/envs/cuda-11/lib"  nsys profile -c cudaProfilerApi -o /tmp/profile ./$<; \
+	nsys-ui /tmp/profile.nsys-rep
 
 test-all:${TEST_APP}
 

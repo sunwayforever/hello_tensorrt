@@ -11,6 +11,7 @@
 #include "NvCaffeParser.h"
 #include "NvInfer.h"
 #include "NvInferPlugin.h"
+#include "cuda_profiler_api.h"
 #include "plugin.h"
 
 using namespace nvinfer1;
@@ -207,12 +208,15 @@ bool SampleMNIST::infer() {
         deviceInputBuffer,
         deviceOutputBuffer,
     };
+    cudaProfilerStart();
     context->enqueue(1, bindings, stream, nullptr);
     cudaError_t error = cudaMemcpy(
         hostOutputBuffer, deviceOutputBuffer, outputSize * sizeof(float),
         cudaMemcpyDeviceToHost);
     cudaStreamSynchronize(stream);
     cudaStreamDestroy(stream);
+    cudaProfilerStop();
+
     printf("output:\n");
     for (int i = 0; i < std::min<int>(outputSize, 16); i++) {
         std::cout << ((float*)hostOutputBuffer)[i] << " ";

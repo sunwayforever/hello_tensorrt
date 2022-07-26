@@ -16,6 +16,7 @@
 #include "NvCaffeParser.h"
 #include "NvInfer.h"
 #include "NvInferPlugin.h"
+#include "cuda_profiler_api.h"
 #include "opencv2/imgcodecs.hpp"
 #include "opencv2/imgproc.hpp"
 
@@ -104,12 +105,14 @@ class ImageNet {
             deviceInputBuffer,
             deviceOutputBuffer,
         };
+        cudaProfilerStart();
         context->enqueue(1, bindings, stream, nullptr);
         cudaError_t error = cudaMemcpy(
             hostOutputBuffer, deviceOutputBuffer, outputSize * sizeof(float),
             cudaMemcpyDeviceToHost);
         cudaStreamSynchronize(stream);
         cudaStreamDestroy(stream);
+        cudaProfilerStop();
         printf("output:\n");
         for (int i = 0; i < std::min<int>(outputSize, 16); i++) {
             std::cout << ((float*)hostOutputBuffer)[i] << " ";
@@ -135,8 +138,7 @@ class ImageNet {
         int WIDTH = getWidth();
         int HEIGHT = getHeight();
 
-        cv::resize(
-            image, resized_image, cv::Size(WIDTH, HEIGHT));
+        cv::resize(image, resized_image, cv::Size(WIDTH, HEIGHT));
         // NOTE: the caffe model is trained in BGR format
         for (int i = 0; i < WIDTH * HEIGHT; i++) {
             data[i] = ((float)resized_image.data[i * 3] - mMean[0]) * mScale;
