@@ -12,8 +12,11 @@
 #include "NvInfer.h"
 #include "NvInferPlugin.h"
 #include "plugin.h"
-#include "BatchStream.h"
-#include "EntropyCalibrator.h"
+
+#ifdef USE_MNIST_CALIBRATOR
+#include "mnist_calibrator/MNISTBatchStream.h"
+#include "mnist_calibrator/EntropyCalibrator.h"
+#endif
 
 using namespace nvinfer1;
 
