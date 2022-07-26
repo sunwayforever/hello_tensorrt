@@ -74,11 +74,14 @@ class ConvolutionPlugin : public MyPlugin {
         int kc = mParam.mKernelWeightsSize;
         int bc = mParam.mBiasWeightsSize;
         int size = mParam.mType == (int)DataType::kFLOAT ? 4 : 1;
-        mKernelWeights = malloc(kc * size);
-        mBiasWeights = malloc(bc * size);
-        memcpy(mKernelWeights, (char*)data + sizeof(mParam), kc * size);
-        memcpy(
-            mBiasWeights, (char*)data + sizeof(mParam) + kc * size, bc * size);
+        cudaMalloc(&mKernelWeights, kc * size);
+        cudaMalloc(&mBiasWeights, bc * size);
+        cudaMemcpy(
+            mKernelWeights, (char*)data + sizeof(mParam), kc * size,
+            cudaMemcpyKind::cudaMemcpyHostToDevice);
+        cudaMemcpy(
+            mBiasWeights, (char*)data + sizeof(mParam) + kc * size, bc * size,
+            cudaMemcpyKind::cudaMemcpyHostToDevice);
     }
 
    public:
@@ -117,8 +120,7 @@ class ConvolutionPlugin : public MyPlugin {
     }
 
     size_t getWorkspaceSize(int maxBatchSize) const noexcept override {
-        int size = mParam.mType == (int)DataType::kFLOAT ? 4 : 1;
-        return (mParam.mKernelWeightsSize + mParam.mBiasWeightsSize) * size;
+        return 0;
     }
 
     int enqueue(

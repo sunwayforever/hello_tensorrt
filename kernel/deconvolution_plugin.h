@@ -83,12 +83,7 @@ class DeconvolutionPlugin : public ConvolutionPlugin {
         mParam.mInputChannel = inDims.d[0];
         mParam.mH = inDims.d[1];
         mParam.mW = inDims.d[2];
-    }
 
-    int enqueue(
-        int batchSize, const void* const* inputs, void* const* outputs,
-        void* workspace, cudaStream_t stream) noexcept override {
-        std::cout << *this;
         // NOTE: kernel 需要做两个变换:
         // 1. IOHW -> OIHW
         // 2. HW 需要中心旋转
@@ -112,7 +107,12 @@ class DeconvolutionPlugin : public ConvolutionPlugin {
             }
         }
         mKernelWeights = kernelWeights;
+    }
 
+    int enqueue(
+        int batchSize, const void* const* inputs, void* const* outputs,
+        void* workspace, cudaStream_t stream) noexcept override {
+        std::cout << *this;
         // NOTE: deconv 还有一种等价的计算方法是: 针对 input 中 CHW 的每一个点,
         // 与 Chw 的 kernel 相乘并求和, 得到 hw 大小的数据, 平铺到输出的一个
         // feature map 中

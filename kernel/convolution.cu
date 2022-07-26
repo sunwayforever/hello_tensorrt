@@ -112,25 +112,6 @@ void Convolution(
     int dilation_h = param.mDilationH;
     int dilation_w = param.mDilationW;
 
-    int size = IS_FLOAT ? 4 : 1;
-    void* kernelWeights = workspace;
-    void* biasWeights = NULL;
-    if (group == 1) {
-        cudaMemcpy(
-            kernelWeights, kernel,
-            input_channel * output_channel * kernel_h * kernel_w * size,
-            cudaMemcpyHostToDevice);
-    } else {
-        cudaMemcpy(
-            kernelWeights, kernel, input_channel * kernel_h * kernel_w * size,
-            cudaMemcpyHostToDevice);
-    }
-    if (bias != NULL) {
-        biasWeights = (char*)workspace + param.mKernelWeightsSize * size;
-        cudaMemcpy(
-            biasWeights, bias, output_channel * size, cudaMemcpyHostToDevice);
-    }
-
     // NOTE: `floor` for convolution
     int output_h =
         (h - (dilation_h * (kernel_h - 1) + 1) + 2 * padding_h) / stride_h + 1;
@@ -142,11 +123,11 @@ void Convolution(
         ConvKernel<float, float>
             <<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
                 (float*)dst, (const float*)src, param, output_h, output_w,
-                (float*)kernelWeights, (float*)biasWeights);
+                (float*)kernel, (float*)bias);
     } else {
         ConvKernel<int8_t, int>
             <<<(int)(total_size / 128) + 1, 128, 0, stream>>>(
                 (int8_t*)dst, (const int8_t*)src, param, output_h, output_w,
-                (int8_t*)kernelWeights, (int8_t*)biasWeights);
+                (int8_t*)kernel, (int8_t*)bias);
     }
 }
