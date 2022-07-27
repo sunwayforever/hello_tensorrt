@@ -1,8 +1,10 @@
 CPPFLAGS := -I /opt/anaconda3/envs/cuda-11/include/ -I/usr/include/opencv4
+CPPFLAGS += -DCONV_ALGORITHM=ConvolutionNaive
+# CPPFLAGS += -DCONV_ALGORITHM=ConvolutionIm2Col
 # CPPFLAGS += -DINT8
 CXXFLAGS := -g -O0 -MMD -Wno-deprecated-declarations
 LDFLAGS := -L/opt/anaconda3/envs/cuda-11/lib -L/opt/anaconda3/envs/cuda-11/lib64 -L${PWD}/TensorRT/build/out
-LDLIBS := -lnvcaffeparser -lnvinfer -lnvinfer_plugin -lcudnn -lcudart -lstdc++ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
+LDLIBS := -lnvcaffeparser -lnvinfer -lnvinfer_plugin -lcudnn -lcudart -lcublas -lstdc++ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
 
 NVCC := /opt/anaconda3/envs/cuda-11/bin/nvcc
 SRC := $(wildcard *.cpp)

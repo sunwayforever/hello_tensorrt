@@ -14,7 +14,7 @@
 #include "convolution_param.h"
 #include "my_plugin.h"
 
-extern void Convolution(
+extern void CONV_ALGORITHM(
     void* dst, const void* src, ConvolutionParam param, void* kernel,
     void* bias, void* workspace, cudaStream_t stream);
 
@@ -128,7 +128,8 @@ class ConvolutionPlugin : public MyPlugin {
         void* workspace, cudaStream_t stream) noexcept override {
         void* dst = outputs[0];
         const void* src = inputs[0];
-        Convolution(
+        std::cout << *this;
+        CONV_ALGORITHM(
             dst, src, mParam, mKernelWeights,
             mParam.mBiasWeightsSize == 0 ? NULL : mBiasWeights, workspace,
             stream);
