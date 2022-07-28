@@ -10,44 +10,43 @@
 __global__ void Im2ColKernel(
     float* dst, const float* src, ConvolutionParam param, int output_h,
     int output_w) {
-    int global_id = blockIdx.x * blockDim.x + threadIdx.x;
+    // NOTE:
+    // https://developer.nvidia.com/blog/cuda-pro-tip-write-flexible-kernels-grid-stride-loops/
+    for (int global_id = blockIdx.x * blockDim.x + threadIdx.x;
+         global_id < output_h * output_w; global_id += gridDim.x * blockDim.x) {
+        int input_channel = param.mInputChannel;
+        int h = param.mH;
+        int w = param.mW;
+        int kernel_h = param.mKernelH;
+        int kernel_w = param.mKernelW;
+        int stride_h = param.mStrideH;
+        int stride_w = param.mStrideW;
+        int padding_h = param.mPaddingH;
+        int padding_w = param.mPaddingW;
+        int dilation_h = param.mDilationH;
+        int dilation_w = param.mDilationW;
 
-    int input_channel = param.mInputChannel;
-    int h = param.mH;
-    int w = param.mW;
-    int kernel_h = param.mKernelH;
-    int kernel_w = param.mKernelW;
-    int stride_h = param.mStrideH;
-    int stride_w = param.mStrideW;
-    int padding_h = param.mPaddingH;
-    int padding_w = param.mPaddingW;
-    int dilation_h = param.mDilationH;
-    int dilation_w = param.mDilationW;
+        int output_x = global_id / output_w;
+        int output_y = global_id % output_w;
 
-    int output_x = global_id / output_w;
-    int output_y = global_id % output_w;
+        int index = 0;
+        for (int k = 0; k < input_channel; k++) {
+            for (int i = 0; i < kernel_h; i++) {
+                for (int j = 0; j < kernel_w; j++) {
+                    int orig_x = output_x * stride_h + i * dilation_h;
+                    int orig_y = output_y * stride_w + j * dilation_w;
 
-    if (output_x >= output_h || output_y >= output_w) {
-        return;
-    }
-
-    int index = 0;
-    for (int k = 0; k < input_channel; k++) {
-        for (int i = 0; i < kernel_h; i++) {
-            for (int j = 0; j < kernel_w; j++) {
-                int orig_x = output_x * stride_h + i * dilation_h;
-                int orig_y = output_y * stride_w + j * dilation_w;
-
-                float src_value = (float)0;
-                if (orig_x >= padding_h && orig_x < padding_h + h &&
-                    orig_y >= padding_w && orig_y < padding_w + w) {
-                    src_value =
-                        src[k * h * w + (orig_x - padding_h) * w + orig_y -
-                            padding_w];
+                    float src_value = (float)0;
+                    if (orig_x >= padding_h && orig_x < padding_h + h &&
+                        orig_y >= padding_w && orig_y < padding_w + w) {
+                        src_value =
+                            src[k * h * w + (orig_x - padding_h) * w + orig_y -
+                                padding_w];
+                    }
+                    dst[index * (output_h * output_w) + output_x * output_w +
+                        output_y] = src_value;
+                    index += 1;
                 }
-                dst[index * (output_h * output_w) + output_x * output_w +
-                    output_y] = src_value;
-                index += 1;
             }
         }
     }
@@ -105,7 +104,7 @@ void ConvolutionIm2Col(
         &im2col_dst,
         output_h * output_w * kernel_h * kernel_w * input_channel * 4);
 
-    Im2ColKernel<<<(int)(output_h * output_w / 128) + 1, 128, 0, stream>>>(
+    Im2ColKernel<<<10, 1024, 0, stream>>>(
         im2col_dst, (const float*)src, param, output_h, output_w);
 
     if (bias != NULL) {
