@@ -2,6 +2,7 @@ CPPFLAGS := -I /opt/anaconda3/envs/cuda-11/include/ -I/usr/include/opencv4
 CPPFLAGS += -DCONV_ALGORITHM=ConvolutionNaive
 # CPPFLAGS += -DCONV_ALGORITHM=ConvolutionIm2Col
 # CPPFLAGS += -DINT8
+# CPPFLAGS += -DUSE_MNIST_CALIBRATOR
 CXXFLAGS := -g -O0 -MMD -Wno-deprecated-declarations
 LDFLAGS := -L/opt/anaconda3/envs/cuda-11/lib -L/opt/anaconda3/envs/cuda-11/lib64 -L${PWD}/TensorRT/build/out
 LDLIBS := -lnvcaffeparser -lnvinfer -lnvinfer_plugin -lcudnn -lcudart -lcublas -lstdc++ -lopencv_core -lopencv_imgproc -lopencv_imgcodecs
@@ -51,3 +52,6 @@ build-tensorrt:
 
 get-tensorrt:
 	git clone https://github.com/NVIDIA/TensorRT/; cd TensorRT; git submodule update --init --recursive; git checkout 156c59ae86d454fa89146fe65fa7332dbc8c3c2b; git submodule update; git apply ../tensorrt.diff; cd ..
+
+get-mnist-dataset:
+	mkdir mnist_calibration_data; cd mnist_calibration_data; wget http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz; wget http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz; gunzip train-images-idx3-ubyte.gz; gunzip train-labels-idx1-ubyte.gz; cd ..
